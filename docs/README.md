@@ -153,7 +153,8 @@ differences between the backends:
 | Random accuracy and tolerance search | [src/random_accuracy.cpp](../src/random_accuracy.cpp), [tools/random_reference_worker.py](../tools/random_reference_worker.py) |
 | Accuracy summaries | [tools/summarize_random_accuracy.py](../tools/summarize_random_accuracy.py), [tools/summarize_random_accuracy_versions.py](../tools/summarize_random_accuracy_versions.py) |
 | Prepared datasets | [tools/export_reference.py](../tools/export_reference.py) |
-| Reference: bound performance/stability matrix (Python, image models) | [examples/tools/run_multi_instance.py](../examples/tools/run_multi_instance.py) |
+| Multi-instance performance/stability (bound or unbound waves) | [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh) |
+| Example: full DINOv3 / YOLO-World / UNet test pipeline | [examples/scripts/benchmark_image_models.sh](../examples/scripts/benchmark_image_models.sh) (delegates to the native build and all-items pipeline) |
 | Native C++ pipeline — build + all items (registered models) | [/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh](../run_all_models_cpp_perf_stability_accuracy.sh) |
 | Native C++ all-items orchestrator (general, supports `--model-file`) | [tools/ov_bench_all.sh](../tools/ov_bench_all.sh) |
 | Native C++ test items (single-process / core-scaling / multi-instance / summary) | [tools/ov_bench_single.sh](../tools/ov_bench_single.sh), [tools/ov_bench_corescaling.sh](../tools/ov_bench_corescaling.sh), [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh), [tools/ov_bench_summary.sh](../tools/ov_bench_summary.sh) |
@@ -480,11 +481,13 @@ Comparison verifies hashes, output identities and process/round coverage;
 stability is not an accuracy check. Legacy `stb1` filenames are explicitly
 rejected rather than silently skipped; historical result files are unchanged.
 
-The topology-specific [bound matrix runner](../examples/tools/run_multi_instance.py) retains
-its 15-process, 6-physical-core-plus-HT policy for image-model performance and
-cross-process stability. It requires the matching topology, 10 images,
-and sufficient disk for stability binaries. The comparator runs through
-`ov_bench --mode compare-stability`, never a separate executable.
+The bound, multi-instance image-model matrix is provided by
+[tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh) (NUMA-group-bound or unbound
+waves with synchronized starts and hyper-threading sweeps). The original
+topology-specific 15-process / 6-physical-core-plus-HT Python reference runner
+is archived under `tmp/examples/tools/` for reproducibility only. Cross-process
+stability is compared through `ov_bench --mode compare-stability`, never a
+separate executable.
 
 [Memory diagnostics](../examples/tools/check_precision_memory.py) measure the Python native
 runtime's RSS/PSS in fresh processes, not the C++ application's memory.

@@ -1,9 +1,9 @@
 # examples/ — reference implementations for specific models
 
-本目录（This directory）contains the test scripts and tools that are tied to
+This directory contains test scripts and tools tied to
 the concrete models originally benchmarked in this repository
 (DinoV3, YOLO-World and UNet). They are
-**reference implementations** (参考实现): they show how to drive the generic
+**reference implementations**: they show how to drive the generic
 `ov_bench` pipeline against a particular model set, but they are not part of
 the generic entry points under `tools/` and `scripts/` in the project root.
 
@@ -29,7 +29,7 @@ tools/ov_bench_summary.sh     --run-dir "$RUN_DIR" ...
 ```
 examples/
 ├── scripts/     # model-specific pipeline scripts and reference utilities
-├── tools/       # model-specific Python tools and image-model matrix runners
+├── tools/       # model-specific Python tools (shared helpers + memory diagnostics)
 └── tests/       # unit/integration tests for the tools above
 ```
 
@@ -37,12 +37,32 @@ examples/
 
 | File | Reference implementation for |
 |---|---|
+| `scripts/benchmark_image_models.sh` | Full native test pipeline for DINOv3, YOLO-World and UNet, delegated to the repository build/all-items entrypoint |
 | `tools/benchmark_common.py` | Shared model-name/manifest helpers used only by the other files here |
 | `tools/check_precision_memory.py` | Python-IR RSS/PSS memory diagnostics for the image models (DinoV3/YOLO) |
 | `tools/python_ir_benchmark.py` | Python-IR performance worker behind the memory/comparison checks |
-| `tools/run_multi_instance.py` | Bound 15-process/6-core image-model performance + stability matrix |
 | `tests/test_precision_memory.py` | Tests for `check_precision_memory.py` |
 | `tests/validate_models.py` | Historical preprocessing validation against `dinov3/` and `yolo-world/` Python scripts |
+
+### Full Image-Model Run
+
+The example delegates build, validation, CPU binding, test-item dispatch and
+summary generation to the repository pipeline; it only selects the three
+documented image-model suites. `--mode all` runs single-process performance,
+accuracy and stability, the default core-scaling sweep, multi-instance
+performance, and the combined summary.
+
+```bash
+bash examples/scripts/benchmark_image_models.sh \
+    --openvino-dir /path/to/openvino/cmake \
+    --ir-root /path/to/models_ov \
+    --images-dir /path/to/test_images \
+    --run-dir /path/to/reports/image_models
+```
+
+The wrapper forwards additional build/test options, including `--threads`,
+`--precisions`, `--taskset-bind`, `--core-scaling` and `--duration`. It does not
+duplicate the implementation in `scripts/` or `tools/`.
 
 Scripts here that need the project use it relative to their own location; some
 older one-off scripts still carry frozen absolute paths and are kept as-is for
