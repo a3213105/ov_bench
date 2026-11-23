@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+tmp/
+ov_bench
+
+# C/C++ build output
+/build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+/ov_benchmark

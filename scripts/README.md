@@ -3,7 +3,7 @@
 The repository main entry,
 `/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh`,
 builds the `ov_benchmark` executable and then runs every test item over the
-**registered** model families (dinov3 / yolo-world / pred / unet). To target an
+**registered** model families (dinov3 / yolo-world / unet). To target an
 **arbitrary model** through the same items, use the general orchestrator, which
 accepts `--model-file` (and `--input-shape` for dynamically-shaped IR):
 
@@ -12,7 +12,7 @@ accepts `--model-file` (and `--input-shape` for dynamically-shaped IR):
 bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
   --openvino-dir /path/to/OpenVINO/cmake \
   --openvino-libs /path/to/libopenvino.so \
-  --suites dinov3,yolo-world,pred,unet \
+  --suites dinov3,yolo-world,unet \
   --mode multi --threads 12 --taskset-bind 0 \
   --instances 24,32,36,38 --warmup 3 --iterations 200 --batch 0,1,2
 
@@ -105,8 +105,8 @@ Shared libraries in `scripts/` (sourced, never run directly):
 Each item entrypoint sets `OVB_STAGE_ACTIVE` before sourcing `ovbench_lib.sh`,
 which selects the right validation path. Items share the parsed configuration
 without reparsing arguments. Scripts in `scripts/` are model-agnostic; scripts
-tied to a specific benchmarked model (DinoV3/YOLO-World/pred reference
-matrices) live under `../examples/` and are outside this pipeline.
+tied to specific benchmarked models (DinoV3/YOLO-World reference matrices) live
+under `../examples/` and are outside this pipeline.
 
 `--mode single` runs ordinary performance, precision and MD5 stability tests.
 `--mode multi` runs performance waves only; `--mode all` runs both stages.
@@ -236,7 +236,6 @@ Removed parameter names are rejected rather than silently accepted.
 |---|---|
 | `--threads`, `--instance-threads` | `--threads` for every process; default 12 |
 | `--model-root-images`, `--model-root-unet` | `--ir-root` |
-| `--model-root-pred` | `--model-root` |
 | `--multi-instance-counts` | `--instances` |
 | `--multi-instance-only` | `--mode multi`; use `--mode all` for both stages |
 | `--rounds` | `--stability-rounds` |
@@ -246,6 +245,6 @@ Removed parameter names are rejected rather than silently accepted.
 | Compile entry `--binary`, `--test-script` | Removed; use `--build-dir`, fixed test pipeline |
 
 `--openvino-dir` is retained because compilation needs an SDK with headers and
-CMake targets, not just a shared library. Optional image/prediction manifests
-are distinct input/reference formats and remain separate. Per-family model
-selectors and profiling are retained because they control independent behavior.
+CMake targets, not just a shared library. Optional model manifests may use
+distinct input/reference formats. Per-family model selectors and profiling are
+retained because they control independent behavior.

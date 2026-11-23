@@ -134,7 +134,19 @@ public:
         std::vector<char*> raw;
         for (auto& arg : argv) raw.push_back(arg.data());
         raw.push_back(nullptr);
-        if (!error) error = ::posix_spawnp(&pid_, o.python.c_str(), &actions, nullptr, raw.data(), environ);
+        // On large hosts the reference worker's OpenVINO/OpenMP runtimes spin up
+        // 2*core-count global arenas and can stall in futex queues during
+        // dlopen/init, so READY may never reach us within the step timeout.
+        // Cap the worker's thread pools (its inference runs with o.threads).
+        std::vector<std::string> env_copy;
+        for (char** env_ptr = environ; *env_ptr; ++env_ptr) env_copy.emplace_back(*env_ptr);
+        env_copy.push_back("TBB_MAX_THREAD_NUM=" + std::to_string(std::max(4u, 2u * o.threads)));
+        env_copy.push_back("OMP_NUM_THREADS=" + std::to_string(std::max(4u, 2u * o.threads)));
+        std::vector<char*> env_raw;
+        for (auto& entry : env_copy) env_raw.push_back(entry.data());
+        env_raw.push_back(nullptr);
+        if (!error) error = ::posix_spawnp(&pid_, o.python.c_str(), &actions, nullptr, raw.data(),
+                                           env_raw.data());
         ::posix_spawn_file_actions_destroy(&actions);
         ::close(sockets[1]);
         if (error) {

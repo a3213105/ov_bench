@@ -71,11 +71,19 @@ class _ReferenceWorker:
         self.timeout = options.timeout_seconds
         self._buffer = b""
         try:
+            # On large hosts the worker's OpenVINO/OpenMP runtimes spin up
+            # 2*core-count global arenas and can stall in futex queues during
+            # dlopen/init, so READY may never arrive within the step timeout.
+            # Cap its thread pools (inference itself runs with options.threads).
+            cap = max(4, 2 * max(1, options.threads))
+            environment = dict(os.environ)
+            environment["TBB_MAX_THREAD_NUM"] = str(cap)
+            environment["OMP_NUM_THREADS"] = str(cap)
             self._process = subprocess.Popen(
                 [options.python, options.worker, "--config", str(config_path),
                  "--directory", str(directory)],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=open(str(log_path), "wb"))
+                stderr=open(str(log_path), "wb"), env=environment)
         except Exception as error:
             raise OVRuntimeError("Cannot start reference worker: %s" % error)
 

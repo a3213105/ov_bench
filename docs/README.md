@@ -16,7 +16,7 @@ Layout:
 | `tools/` | Python benchmark/diagnostic/reference tools |
 | `tests/` | Unit tests (`test_*.py`, `random_accuracy_core.cpp`) |
 | `scripts/` | Pipeline and workflow shell scripts |
-| `docs/` | This README and [PRED_MODELS.md](./PRED_MODELS.md) |
+| `docs/` | This README |
 
 ## Supported models
 
@@ -24,24 +24,23 @@ Layout:
 |---|---|---|
 | DINOv3 | `dinov3-convnext-tiny-pretrain-lvd1689m`, `dinov3-vits16-pretrain-lvd1689m`, `dinov3-vits16plus-pretrain-lvd1689m` | Existing XML/BIN IR, RGB normalized NCHW 224 |
 | YOLO-World | `v2:640`, `v2:1280`, `v2.1:640`, `v2.1:1280` | Existing XML/BIN IR, letterboxed RGB; three raw heads |
-| Prediction | `26Q2_round13_run2_e40_no_map_attn`, `ped_26Q1_history_data_gen4_800v2_issue2_e23_refine`, `vehicle_q2_release_v0_w_leading_25` | Original ONNX, named floating features and boolean masks |
-
 These are numerical inference tests, not detection decoding/NMS or business
-quality evaluation. See [prediction workflow](./PRED_MODELS.md).
+quality evaluation.
 
 ## Build and regression tests
 
 Requires CMake >= 3.16, C++17, OpenVINO Runtime SDK, OpenSSL Crypto,
-libjpeg, libpng and nlohmann-json. Local framework reference tests use
-conda `didi_t213`.
+libjpeg, libpng and nlohmann-json. Local framework reference tests use a
+configured Python environment.
 
 ```bash
-CPP=/home/sgui/2026/ov_bench
-PYTHON=/home/sgui/miniforge3/envs/didi_t213/bin/python
+CPP=$PWD
+PYTHON=${PYTHON:-python3}
+OPENVINO_CMAKE_DIR=/path/to/openvino/lib/cmake/openvino
 mkdir -p "/tmp/ovbench-$(id -u)"
 RUN="$(mktemp -d "/tmp/ovbench-$(id -u)/validation-XXXXXXXX")"
 cmake -S "$CPP" -B "$RUN/build" -DCMAKE_BUILD_TYPE=Release \
-  -DOpenVINO_DIR=/home/sgui/miniforge3/envs/didi_t213/lib/cmake/openvino2025.4.1
+  -DOpenVINO_DIR="$OPENVINO_CMAKE_DIR"
 cmake --build "$RUN/build" --target ov_benchmark -j 4
 BIN="$RUN/build/ov_benchmark"
 "$BIN" --mode self-test
@@ -63,26 +62,25 @@ not archives; pass prepared manifests explicitly.
 |---|---|
 | Native shared functionality | [src/core.cpp](../src/core.cpp), [src/stability.cpp](../src/stability.cpp), [src/image.cpp](../src/image.cpp) |
 | Random accuracy and tolerance search | [src/random_accuracy.cpp](../src/random_accuracy.cpp), [tools/random_reference_worker.py](../tools/random_reference_worker.py) |
-| Reference: detached accuracy matrices (specific model list) | [examples/scripts/run_random_accuracy_background.sh](../examples/scripts/run_random_accuracy_background.sh), [examples/scripts/run_random_accuracy_versions.sh](../examples/scripts/run_random_accuracy_versions.sh) |
 | Accuracy summaries | [tools/summarize_random_accuracy.py](../tools/summarize_random_accuracy.py), [tools/summarize_random_accuracy_versions.py](../tools/summarize_random_accuracy_versions.py) |
-| Prepared datasets | [tools/prepare_pred_models.py](../tools/prepare_pred_models.py), [tools/export_reference.py](../tools/export_reference.py), [examples/scripts/benchmark_pred_models.sh](../examples/scripts/benchmark_pred_models.sh) (reference) |
+| Prepared datasets | [tools/export_reference.py](../tools/export_reference.py) |
 | Reference: bound performance/stability matrix (Python, image models) | [examples/tools/run_multi_instance.py](../examples/tools/run_multi_instance.py) |
 | Native C++ pipeline — build + all items (registered models) | [/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh](../run_all_models_cpp_perf_stability_accuracy.sh) |
 | Native C++ all-items orchestrator (general, supports `--model-file`) | [tools/ov_bench_all.sh](../tools/ov_bench_all.sh) |
 | Native C++ test items (single-process / core-scaling / multi-instance / summary) | [tools/ov_bench_single.sh](../tools/ov_bench_single.sh), [tools/ov_bench_corescaling.sh](../tools/ov_bench_corescaling.sh), [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh), [tools/ov_bench_summary.sh](../tools/ov_bench_summary.sh) |
 | Reference: Python IR benchmark worker (memory diagnostics) | [examples/tools/python_ir_benchmark.py](../examples/tools/python_ir_benchmark.py) |
 | Reference: shared dataset/manifest helpers | [examples/tools/benchmark_common.py](../examples/tools/benchmark_common.py) |
-| Reference: memory diagnostics | [examples/tools/check_precision_memory.py](../examples/tools/check_precision_memory.py) (Python IR), [examples/tools/run_pred_memory.py](../examples/tools/run_pred_memory.py) / [src/memory.cpp](../src/memory.cpp) (native prediction stages, optional CMake target; see [prediction memory workflow](./PRED_MODELS.md#native-stage-memory-diagnostic)) |
+| Reference: memory diagnostics | [examples/tools/check_precision_memory.py](../examples/tools/check_precision_memory.py) (Python IR) |
 | CPU plugin deployment with guard/rollback | [tools/deploy_cpu_plugin.py](../tools/deploy_cpu_plugin.py) |
 | Reference: real-model preprocessing validation | [examples/tests/validate_models.py](../examples/tests/validate_models.py) |
 
 The files under [examples/](../examples/README.md) are reference implementations
 for the specific models originally benchmarked here (DinoV3 / YOLO-World /
-UNet / pred). To test your own model use the generic entry points above
+UNet). To test your own model use the generic entry points above
 (`--model-file` / `--input-shape`); they do not depend on anything in
 `examples/`.
 
-Historical fixed-source/pip comparison, one-off didi deployment and fixed
+Historical fixed-source/pip comparison, one-off deployment and fixed
 38/40-instance supplement scripts are no longer maintained here. Their reports
 and deployment snapshots are not modified. The current matrix supports 40
 instances directly.
@@ -115,12 +113,11 @@ count. Core-scaling binds N physical cores and uses N OpenVINO threads.
 uses measured wall time; `inference_throughput_fps` is calculated from mean
 single-inference latency.
 
-For generated prediction inputs, `--input-count N` controls the random tensor
+For generated inputs, `--input-count N` controls the random tensor
 pool (default 10). A count of 1 binds one input set and reuses it; a larger
 count cycles through pre-generated tensors and rebinds each request. In multi
 mode, every worker process generates its own in-memory pool and writes to its
-own result directory; this works with bound or unbound taskset modes. It cannot
-be combined with `--pred-manifest`.
+own result directory; this works with bound or unbound taskset modes.
 
 In single mode, `--taskset-bind 1` binds execution to available CPUs on the
 selected NUMA node, `0` leaves the process unbound, and `2` runs both variants
@@ -204,15 +201,12 @@ Each iteration generates fresh shared inputs and runs precisions sequentially.
 Floating inputs use `normal(0,0.1)`; masks use Bernoulli(0.75) with first/last
 entries valid/invalid when possible. This assumes True means valid.
 Model-salted seeds and input hashes allow reproducible comparisons.
-`--seed N` is configurable and defaults to 43 in the native runner,
-prediction input preparation and both random-accuracy orchestration scripts.
-For example, append `--seed 123` after the report path when calling either
-orchestration script. Historical reports retain their original recorded seeds.
+`--seed N` is configurable and defaults to 43 in the native runner. Pass the
+same seed to repeated runs when reproducing candidate inputs; historical
+reports retain their recorded seeds.
 
 Only dynamic leading batch resolves automatically to 1. Other dynamic
 dimensions require `--random-shapes FILE`, keyed by model ID and input name.
-Prediction graphs keep their original dynamic shapes in all precisions.
-The removed static BF16 reshape workaround has no fallback.
 
 Reference priority is ONNX Runtime CPU FP32, recognized PyTorch CPU FP32,
 then native OpenVINO FP32 when external assets are absent. An available but
@@ -222,7 +216,7 @@ For example:
 
 ```json
 {
-  "vehicle_q2_release_v0_w_leading_25": {"backend": "openvino"}
+  "MODEL_ID": {"backend": "openvino"}
 }
 ```
 
@@ -316,44 +310,8 @@ comparison. Fixed seed/model reproduces the candidate stream; selected
 subsets can differ across reference backends, ISA paths or runtime versions,
 so compare retained input hashes before treating results as paired.
 
-The orchestration scripts also accept the flag after the new report path:
-
-```bash
-bash "$CPP/examples/scripts/run_random_accuracy_background.sh" "$RUN/filtered" \
-  --resample-common-cosine-failures
-```
-
-The same flag is forwarded by `run_random_accuracy_versions.sh`. Its
-cross-version validator still reports ERROR if accepted input hashes differ,
-rather than presenting unpaired subsets as a matched accuracy comparison.
-
-The wrapper's existing per-model two-hour timeout still applies; an interrupted
-run is not complete unless the accepted count reaches the requested count.
-
-### Background and dual-version matrices
-
-```bash
-bash "$CPP/examples/scripts/run_random_accuracy_background.sh" /path/to/NEW_REPORT_DIR
-bash "$CPP/examples/scripts/run_random_accuracy_versions.sh" /path/to/NEW_DUAL_REPORT_DIR
-```
-
-Use an external detached process runner when disconnect survival is required.
-The scripts do not detach themselves. The local matrix assigns model queues
-to NUMA nodes 1/2/3 using each node's physical-core count, with 100 input sets.
-Numeric failures do not stop other models. `PASS`/`FAIL` mean completed numeric
-evaluation; `ERROR` means execution failure or incomplete coverage.
-
-The version driver snapshots source and verifies the patched CPU plugin hash,
-runs 2023.3 then patched 2025.4.1, and verifies cross-version input hashes.
-Its SDK paths are local-host settings. Inner runner overrides:
-`OVBENCH_SOURCE_DIR`, `OVBENCH_OPENVINO_DIR`, `OVBENCH_REFERENCE_PYTHON`.
-Both accept `OVBENCH_REFERENCE_CONFIG`; the version driver snapshots it.
-`OVBENCH_REFERENCE_PROJECT_ROOT` locates framework assets from relocated
-snapshots. No runtime is installed or replaced by accuracy runners.
-
-Unpatched older runtimes may fail on prediction dynamic BF16. Such failures
-are reported, not bypassed by static reshape. Use the fixed plugin for current
-prediction validation; see [Gather deployment details](./PRED_MODELS.md).
+Runtime failures are reported rather than bypassed with model-specific shape
+workarounds.
 
 ### FP32 tolerance search
 
@@ -367,8 +325,7 @@ is `1e-8`; bounds are rounded outward.
 `calibration_accuracy` retains default results, `accuracy` retains final
 verification, and `tolerance_search` records trials/bounds/status.
 These are empirical minima along a fixed ratio, not independent global
-minima or business acceptance criteria. The version driver accepts
-`OVBENCH_TEST_MODE=tolerance-search`.
+minima or business acceptance criteria.
 
 ## Performance and stability
 
@@ -439,10 +396,9 @@ runtime's RSS/PSS in fresh processes, not the C++ application's memory.
 
 ## Prepared references and diagnostic modes
 
-[export_reference.py](../tools/export_reference.py) exports image-model input/reference
-tensors; [prepare_pred_models.py](../tools/prepare_pred_models.py) creates named
-prediction inputs and ONNX Runtime references. Pass the resulting manifest
-explicitly. `--mode accuracy` retains dataset-level aggregate cosine behavior
+[export_reference.py](../tools/export_reference.py) exports image-model
+input/reference tensors. Pass the resulting manifest explicitly. `--mode accuracy`
+retains dataset-level aggregate cosine behavior
 for existing prepared references; it is not the per-output joint tolerance
 criterion of `random-accuracy`.
 
@@ -460,5 +416,5 @@ For a complete real-model preprocessing/inference regression:
 ```
 
 This checks all seven image-model specifications and three precisions.
-Unit tests also cover prediction preparation, random references, tolerance
-search, exact integer handling, variance, stability and default graph policies.
+Unit tests also cover random references, tolerance search, exact integer
+handling, variance, stability and default graph policies.

@@ -11,24 +11,6 @@ SCRIPT = Path(__file__).resolve().parents[1] / "tools" / "summarize_random_accur
 
 
 class RandomAccuracySummaryTests(unittest.TestCase):
-    def test_seed_wrapper_options_are_validated_before_starting_runs(self):
-        with tempfile.TemporaryDirectory(prefix="seed-options-") as directory:
-            for name in ("run_random_accuracy_background.sh", "run_random_accuracy_versions.sh"):
-                script = SCRIPT.parent.parent / "examples" / "scripts" / name
-                for seed in ("0", "43", "123", "00043", "1000000000"):
-                    result = subprocess.run(
-                        ["bash", str(script), directory, "--seed", seed],
-                        capture_output=True, text=True, timeout=10)
-                    self.assertEqual(result.returncode, 2)
-                    self.assertIn("Report directory already exists", result.stderr)
-                for extra in (["--seed"], ["--seed", "-1"], ["--seed", "nan"],
-                              ["--seed", "1000000001"], ["--seed", "1.5"]):
-                    result = subprocess.run(
-                        ["bash", str(script), directory, *extra],
-                        capture_output=True, text=True, timeout=10)
-                    self.assertEqual(result.returncode, 2)
-                    self.assertIn("--seed requires an integer", result.stderr)
-
     def test_matrix_retains_sampling_policy_and_requested_accepted_count(self):
         with tempfile.TemporaryDirectory(prefix="sampling-summary-") as directory:
             root = Path(directory)
