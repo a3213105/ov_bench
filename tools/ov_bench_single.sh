@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ov_bench SINGLE-PROCESS test item: for each selected model runs performance +
-# correctness (accuracy) + MD5 stability in one native `ov_benchmark --mode all`
+# correctness (accuracy) + MD5 stability in one native `ov_bench --mode all`
 # pass, across the requested taskset binding modes. Persists its summary entries
 # for the summary stage.
 set -euo pipefail

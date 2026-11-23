@@ -1,8 +1,8 @@
-# OpenVINO C++/Python model tests
+# OpenVINO C++/Python model inference benchmark
 
 All standard native inference, accuracy, performance, stability and regression modes
 use [src/main.cpp](../src/main.cpp). CMake builds one executable:
-`ov_benchmark`. Model-specific schemas, input preparation and graph policies
+`ov_bench`. Model-specific schemas, input preparation and graph policies
 are in [src/application.cpp](../src/application.cpp).
 
 The same user-visible surface (CLI flags, `results.json` / `summary.tsv` layout,
@@ -25,12 +25,32 @@ Layout:
 | Directory | Content |
 |---|---|
 | `src/` | C++ sources (`main.cpp`, `core.cpp`, ...) |
-| `include/ovbench/` | C++ headers |
+| `include/ov_bench/` | C++ headers |
 | `python/` | Python backend package (`python -m ov_bench`) |
-| `tools/` | Python benchmark/diagnostic/reference tools |
-| `tests/` | Unit tests (`test_*.py`, `random_accuracy_core.cpp`) |
-| `scripts/` | Pipeline and workflow shell scripts (incl. `build_cpp.sh`) |
+| `tools/` | Shell test-item/orchestration entry points and Python benchmark/reference/report tools |
+| `tests/` | C++ regression support and Python unit/integration tests |
+| `scripts/` | Shared shell pipeline configuration, build, validation, NUMA and summary helpers |
+| `examples/` | Model-specific reference scripts, tools and validation for the documented image models |
 | `docs/` | This README |
+
+## Repository Architecture
+
+| Layer | Main files | Responsibility |
+|---|---|---|
+| Backend selector | Root [`ov_bench`](../ov_bench) | One CLI entry point; selects C++ or Python via `--backend` / `OVBENCH_BACKEND` |
+| Native engine | `src/`, `include/ov_bench/`, `CMakeLists.txt` | `main.cpp` dispatches modes; `application.cpp` owns model adapters; `core.cpp`, `image.cpp`, `random_accuracy.cpp` and `stability.cpp` implement shared inference workflows |
+| Python engine | `python/ov_bench/` | Independent engine with matching CLI/report conventions; modules divide engine dispatch, model/application handling, sessions, image preprocessing, random accuracy, stability and tensor I/O |
+| Pipeline | `run_all_models_cpp_perf_stability_accuracy.sh`, `tools/ov_bench_*.sh`, `scripts/` | Compile-first native registered-model entry; reusable all-items/item orchestration; shared argument parsing, validation, CPU assignment and summary merging |
+| Reference utilities | `tools/*.py`, `examples/` | Dataset/reference export, framework workers, report summarizers and model-specific image workflows; these are separate from the generic engine |
+| Validation | `tests/`, `examples/tests/` | Native regression support, backend/unit tests and real-image preprocessing checks |
+
+The root `ov_bench` script prefers an executable `build/ov_bench` (or
+`OVBENCH_CPP_BIN`) when no backend is selected; otherwise it runs the Python
+package using `OVBENCH_PYTHON` or `python3`. The compile-first
+`run_all_models_cpp_perf_stability_accuracy.sh` is specifically the native
+registered-model pipeline. `tools/ov_bench_all.sh` is the reusable all-items
+orchestrator and delegates to the single-process, core-scaling, multi-instance
+and summary item scripts.
 
 ## Supported models
 
@@ -44,9 +64,10 @@ quality evaluation.
 
 ## Build and regression tests
 
-Requires CMake >= 3.16, C++17, OpenVINO Runtime SDK, OpenSSL Crypto,
-libjpeg, libpng and nlohmann-json. Local framework reference tests use a
-configured Python environment.
+The native build requires CMake >= 3.16, C++17, the OpenVINO Runtime SDK,
+OpenSSL Crypto, libjpeg, libpng and nlohmann-json. The Python backend requires
+Python with OpenVINO and NumPy; framework reference tests may also need ONNX
+Runtime or PyTorch. Run the commands below from the repository root.
 
 ```bash
 CPP=$PWD
@@ -56,9 +77,10 @@ mkdir -p "/tmp/ovbench-$(id -u)"
 RUN="$(mktemp -d "/tmp/ovbench-$(id -u)/validation-XXXXXXXX")"
 cmake -S "$CPP" -B "$RUN/build" -DCMAKE_BUILD_TYPE=Release \
   -DOpenVINO_DIR="$OPENVINO_CMAKE_DIR"
-cmake --build "$RUN/build" --target ov_benchmark -j 4
-BIN="$RUN/build/ov_benchmark"
+cmake --build "$RUN/build" --target ov_bench -j 4
+BIN="$RUN/build/ov_bench"
 "$BIN" --mode self-test
+OVBENCH_PYTHON="$PYTHON" ./ov_bench --backend python --mode self-test
 OVBENCH_BINARY="$BIN" "$PYTHON" -m unittest discover -s "$CPP/tests" -p 'test_*.py'
 ```
 
@@ -77,7 +99,7 @@ Both engines expose the same CLI surface, modes and report layout:
 
 | Backend | Entry point | Implementation |
 |---|---|---|
-| `cpp` | `ov_benchmark` (built from `src/`) | Native OpenVINO C++ API |
+| `cpp` | `ov_bench` (built from `src/`) | Native OpenVINO C++ API |
 | `python` | `python -m ov_bench` (package [python/ov_bench/](../python/ov_bench/)) | OpenVINO Python API engine, same options, `results.json` / `summary.tsv` layout and modes |
 
 The root [`ov_bench`](../ov_bench) script runs either engine with the same
@@ -90,10 +112,12 @@ command line:
 ```
 
 `--backend` / `OVBENCH_BACKEND` selects the engine; `--binary` /
-`OVBENCH_CPP_BIN` points at a built `ov_benchmark`; `OVBENCH_PYTHON` chooses
-the Python interpreter (needs an OpenVINO + numpy environment). Without an
-explicit selection a runnable `build/ov_benchmark` (or `OVBENCH_CPP_BIN`)
-selects `cpp`, otherwise the Python backend is used.
+`OVBENCH_CPP_BIN` points at a built `ov_bench`; `OVBENCH_PYTHON` chooses
+the Python interpreter. Without an explicit selection a runnable
+`build/ov_bench` (or `OVBENCH_CPP_BIN`) selects `cpp`, otherwise the
+Python backend is used. Direct `python -m ov_bench` invocation needs the
+package installed or `PYTHONPATH="$CPP/python"`; the root selector sets that
+path automatically.
 
 Covered modes on both backends: `performance`, `accuracy`, `stability`, `all`,
 `preprocess`, `single`, `random-accuracy`, `tolerance-search`, `self-test`,
@@ -247,7 +271,7 @@ manifests. Generic random testing does not infer business input semantics:
 index bounds, token ranges, shape-tensor contents and relationships between
 inputs may require real prepared inputs or a model-specific adapter. Random
 numeric tests are not business-accuracy certification. This direct-file entry
-belongs to `ov_benchmark`; the suite pipeline continues to select registered
+belongs to `ov_bench`; the suite pipeline continues to select registered
 model families.
 
 ## Random multi-precision accuracy
@@ -460,7 +484,7 @@ The topology-specific [bound matrix runner](../examples/tools/run_multi_instance
 its 15-process, 6-physical-core-plus-HT policy for image-model performance and
 cross-process stability. It requires the matching topology, 10 images,
 and sufficient disk for stability binaries. The comparator runs through
-`ov_benchmark --mode compare-stability`, never a separate executable.
+`ov_bench --mode compare-stability`, never a separate executable.
 
 [Memory diagnostics](../examples/tools/check_precision_memory.py) measure the Python native
 runtime's RSS/PSS in fresh processes, not the C++ application's memory.

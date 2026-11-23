@@ -1,4 +1,4 @@
-"""ov_bench Python backend: functional port of the native C++ ov_benchmark engine.
+"""ov_bench Python backend: functional port of the native C++ ov_bench engine.
 
 Covers the same user-visible surface (CLI flags, results.json / summary.tsv
 layout, modes performance|accuracy|stability|all|preprocess|single|

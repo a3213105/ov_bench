@@ -5,7 +5,7 @@
 #   --backend cpp | python        (or OVBENCH_BACKEND=cpp|python)
 #
 # Without --backend the tool prefers the native binary when it is already
-# built (build/ov_benchmark or OVBENCH_CPP_BIN) and otherwise falls back to the
+# built (build/ov_bench or OVBENCH_CPP_BIN) and otherwise falls back to the
 # Python engine.
 #
 # Examples:
@@ -14,7 +14,7 @@
 #   ./ov_bench --backend cpp --mode self-test
 #
 # Environment overrides:
-#   OVBENCH_CPP_BIN   Path to the native ov_benchmark executable
+#   OVBENCH_CPP_BIN   Path to the native ov_bench executable
 #   OVBENCH_PYTHON    Python interpreter used for the Python backend
 set -euo pipefail
 
@@ -35,7 +35,7 @@ while (($#)); do
 done
 
 if [[ -z "$BACKEND" ]]; then
-	if [[ -n "${CPP_BIN:-}" && -x "$CPP_BIN" ]] || [[ -x "$ROOT/build/ov_benchmark" ]]; then
+	if [[ -n "${CPP_BIN:-}" && -x "$CPP_BIN" ]] || [[ -x "$ROOT/build/ov_bench" ]]; then
 		BACKEND="cpp"
 	else
 		BACKEND="python"
@@ -48,9 +48,9 @@ case "$BACKEND" in
 		exec "$PYTHON_BIN" -m ov_bench "${ARGS[@]}"
 		;;
 	cpp)
-		BIN="${CPP_BIN:-$ROOT/build/ov_benchmark}"
+		BIN="${CPP_BIN:-$ROOT/build/ov_bench}"
 		if [[ ! -x "$BIN" ]]; then
-			echo "C++ ov_benchmark binary not found at: $BIN" >&2
+			echo "C++ ov_bench binary not found at: $BIN" >&2
 			echo "Build it with scripts/build_cpp.sh, pass --binary, or rerun with --backend python" >&2
 			exit 2
 		fi

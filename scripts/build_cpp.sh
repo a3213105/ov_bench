@@ -62,7 +62,7 @@ fi
 
 mkdir -p "$BUILD_DIR"
 cmake -S "$CPP_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DOpenVINO_DIR="$OPENVINO_DIR"
-cmake --build "$BUILD_DIR" --target ov_benchmark -j "${BUILD_JOBS:-8}"
+cmake --build "$BUILD_DIR" --target ov_bench -j "${BUILD_JOBS:-8}"
 
 if [[ ! -x "$BINARY" ]]; then
   echo "Built binary not executable: $BINARY" >&2

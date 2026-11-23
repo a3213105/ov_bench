@@ -1,9 +1,9 @@
-#include "ovbench/application.hpp"
-#include "ovbench/core.hpp"
-#include "ovbench/image.hpp"
-#include "ovbench/stability.hpp"
-#include "ovbench/random_accuracy.hpp"
-#include "ovbench/self_test.hpp"
+#include "ov_bench/application.hpp"
+#include "ov_bench/core.hpp"
+#include "ov_bench/image.hpp"
+#include "ov_bench/stability.hpp"
+#include "ov_bench/random_accuracy.hpp"
+#include "ov_bench/self_test.hpp"
 
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>
@@ -238,7 +238,7 @@ Options parse(int argc, char** argv) {
         const std::string key = argv[i];
         if (key == "--help") {
             std::cout <<
-                "ov_benchmark --model-root DIR --output NEW_DIR [options]\n"
+                "ov_bench --model-root DIR --output NEW_DIR [options]\n"
                 "  --model all|MODEL_ID[,MODEL_ID]  --precisions FP32,BF16,FP16\n"
                 "  --model-file FILE               Test an unregistered ONNX/XML model with native random inputs\n"
                 "  --input-shape NAME=DIM[,DIM...]  Override one input shape; repeat per input\n"

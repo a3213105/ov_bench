@@ -141,7 +141,7 @@ ovb_init() {
 		return 0
 	fi
 
-	[[ -x "$BINARY" ]] || { echo "ov_benchmark binary not executable: $BINARY" >&2; return 1; }
+	[[ -x "$BINARY" ]] || { echo "ov_bench binary not executable: $BINARY" >&2; return 1; }
 	mkdir -p "$RUN_DIR"
 	MASTER_LOG="$RUN_DIR/master.log"
 	touch "$MASTER_LOG"

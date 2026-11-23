@@ -1,5 +1,5 @@
-#include "ovbench/image.hpp"
-#include "ovbench/core.hpp"
+#include "ov_bench/image.hpp"
+#include "ov_bench/core.hpp"
 
 #include <algorithm>
 #include <array>

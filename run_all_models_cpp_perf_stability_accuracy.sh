@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main entry: build the native ov_benchmark, then run the registered-model
+# Main entry: build the native ov_bench, then run the registered-model
 # specialization of the general ov_bench all-items entrypoint.
 #
 # Registered (specialized) test set: the built-in dinov3 / yolo-world / pred /
@@ -7,7 +7,7 @@
 # the general entrypoint directly, which also accepts --model-file:
 #
 #     bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
-#         --binary /path/to/ov_benchmark --model-file /path/to/model.onnx ...
+#         --binary /path/to/ov_bench --model-file /path/to/model.onnx ...
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CPP_DIR="$ROOT_DIR"
@@ -32,7 +32,7 @@ usage() {
 Usage: run_all_models_cpp_perf_stability_accuracy.sh [options_for_build] [options_for_test]
 
 Single entry point (registered-model test set):
-  1) build C++ ov_benchmark
+  1) build C++ ov_bench
   2) run the general all-items entrypoint (tools/ov_bench_all.sh) over the
      built-in dinov3 / yolo-world / pred / unet suites
 
@@ -91,7 +91,7 @@ while (($#)); do
 	esac
 done
 
-BINARY="$BUILD_DIR/ov_benchmark"
+BINARY="$BUILD_DIR/ov_bench"
 
 # Validate the forwarded test options before the (expensive) build so bad
 # arguments fail fast. Paths that do not exist yet are tolerated here; each item

@@ -1,4 +1,4 @@
-#include "ovbench/core.hpp"
+#include "ov_bench/core.hpp"
 
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>

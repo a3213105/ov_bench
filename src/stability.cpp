@@ -1,5 +1,5 @@
-#include "ovbench/stability.hpp"
-#include "ovbench/core.hpp"
+#include "ov_bench/stability.hpp"
+#include "ov_bench/core.hpp"
 
 #include <openssl/rand.h>
 #include <unistd.h>

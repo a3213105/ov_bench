@@ -1,6 +1,6 @@
 """Model registry, loading/validation and random-input generation.
 
-Python port of ``include/ovbench/application.hpp`` + ``src/application.cpp``.
+Python port of ``include/ov_bench/application.hpp`` + ``src/application.cpp``.
 
 Differences (documented, mirroring the package docstring):
 * Random streams are generated with :mod:`numpy` (PCG64) seeded from

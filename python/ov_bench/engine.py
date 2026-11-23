@@ -1,6 +1,6 @@
 """Benchmark engine: option parsing + execution of every mode.
 
-Python port of ``src/main.cpp`` (``ov_benchmark``). Produces the same
+Python port of ``src/main.cpp`` (``ov_bench``). Produces the same
 ``results.json`` / ``summary.tsv`` layout, per-model directories and side files
 so the shell entrypoints under ``tools/`` can drive the Python backend in place
 of the native binary.
@@ -118,7 +118,7 @@ class Options:
 
 
 _HEADERS = (
-    "ov_benchmark --model-root DIR --output NEW_DIR [options]\n"
+    "ov_bench --model-root DIR --output NEW_DIR [options]\n"
     "  --model all|MODEL_ID[,MODEL_ID]  --precisions FP32,BF16,FP16\n"
     "  --model-file FILE               Test an unregistered ONNX/XML model with native random inputs\n"
     "  --input-shape NAME=DIM[,DIM...]  Override one input shape; repeat per input\n"

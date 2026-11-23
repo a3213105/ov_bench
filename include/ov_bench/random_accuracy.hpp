@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ovbench/application.hpp"
+#include "ov_bench/application.hpp"
 
 #include <cstdint>
 #include <optional>

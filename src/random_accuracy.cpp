@@ -1,5 +1,5 @@
-#include "ovbench/random_accuracy.hpp"
-#include "ovbench/core.hpp"
+#include "ov_bench/random_accuracy.hpp"
+#include "ov_bench/core.hpp"
 
 #include <algorithm>
 #include <cerrno>

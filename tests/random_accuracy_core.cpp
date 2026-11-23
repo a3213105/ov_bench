@@ -1,6 +1,6 @@
-#include "ovbench/application.hpp"
-#include "ovbench/core.hpp"
-#include "ovbench/self_test.hpp"
+#include "ov_bench/application.hpp"
+#include "ov_bench/core.hpp"
+#include "ov_bench/self_test.hpp"
 #include <openvino/opsets/opset13.hpp>
 
 #include <cmath>

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ov_bench MULTI-INSTANCE test item: launches waves of independent ov_benchmark
+# ov_bench MULTI-INSTANCE test item: launches waves of independent ov_bench
 # workers (NUMA-group-bound or unbound), with optional synchronized starts and
 # hyper-threading sweeps, then aggregates per-instance metrics.
 set -euo pipefail

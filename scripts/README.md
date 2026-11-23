@@ -2,7 +2,7 @@
 
 The repository main entry,
 `/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh`,
-builds the `ov_benchmark` executable and then runs every test item over the
+builds the `ov_bench` executable and then runs every test item over the
 **registered** model families (dinov3 / yolo-world / unet). To target an
 **arbitrary model** through the same items, use the general orchestrator, which
 accepts `--model-file` (and `--input-shape` for dynamically-shaped IR):
@@ -18,7 +18,7 @@ bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
 
 # Arbitrary-model entrypoint (runs each item; no build step — pass --binary):
 bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
-  --binary /path/to/ov_benchmark \
+  --binary /path/to/ov_bench \
   --model-file /path/to/model.onnx --suites generic \
   --input-shape <input_name>=N,C,H,W   # only if the model has dynamic shape
 ```
@@ -84,7 +84,7 @@ Top-level entrypoints (invoke these directly; each accepts `--help`):
 
 | Entrypoint | Responsibility |
 |---|---|
-| `/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh` | Build `ov_benchmark`, then run the registered-model specialization of the all-items entrypoint |
+| `/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh` | Build `ov_bench`, then run the registered-model specialization of the all-items entrypoint |
 | `tools/ov_bench_all.sh` | General orchestrator: runs every applicable test item, sharing one `--run-dir` |
 | `tools/ov_bench_single.sh` | Single-process item: perf + accuracy + MD5 stability (`--mode all`) |
 | `tools/ov_bench_corescaling.sh` | Core-scaling item: single-process perf swept by physical-core count |

@@ -1,5 +1,5 @@
-#include "ovbench/application.hpp"
-#include "ovbench/core.hpp"
+#include "ov_bench/application.hpp"
+#include "ov_bench/core.hpp"
 
 #include <onnxruntime_cxx_api.h>
 #include <openvino/runtime/properties.hpp>
