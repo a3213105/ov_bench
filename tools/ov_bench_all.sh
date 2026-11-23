@@ -10,8 +10,9 @@
 #   multi-instance  (ov_bench_multi.sh)       -- when --mode includes the multi stage
 #   summary         (ov_bench_summary.sh)     -- runs when any of the items above produced mergeable output
 #
-# The repository main entry (run_all_models_cpp_perf_stability_accuracy.sh) is the
-# registered-model specialization of this script.
+# Registered-model runs use --suites dinov3,yolo-world,pred,unet (or a subset);
+# arbitrary models use --model-file. Build the native binary first with
+# scripts/build_cpp.sh and pass it via --binary.
 set -euo pipefail
 OVB_STAGE_ACTIVE="all"
 # Capture the raw arguments BEFORE the library parses them (parameters.sh

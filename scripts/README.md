@@ -1,24 +1,28 @@
 # C++ Test Pipeline
 
-The repository main entry,
-`/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh`,
-builds the `ov_bench` executable and then runs every test item over the
-**registered** model families (dinov3 / yolo-world / unet). To target an
-**arbitrary model** through the same items, use the general orchestrator, which
-accepts `--model-file` (and `--input-shape` for dynamically-shaped IR):
+`scripts/build_cpp.sh` builds the `ov_bench` executable; `tools/ov_bench_all.sh`
+then runs every test item over the **registered** model families (select
+`--suites dinov3,yolo-world,pred,unet` or a subset) or over an **arbitrary
+model** via `--model-file` (and `--input-shape` for dynamically-shaped IR):
 
 ```bash
-# Registered-model specialization (builds, then runs all applicable items):
-bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
-  --openvino-dir /path/to/OpenVINO/cmake \
-  --openvino-libs /path/to/libopenvino.so \
+# 1) Build the native binary (once per OpenVINO SDK):
+bash /home/sgui/2026/ov_bench/scripts/build_cpp.sh \
+  --openvino-libs /path/to/libopenvino.so
+source /home/sgui/2026/ov_bench/build/ov_bench_runtime.env
+
+BINARY=/home/sgui/2026/ov_bench/build/ov_bench
+
+# 2) Registered-model full-items run:
+bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
+  --binary "$BINARY" \
   --suites dinov3,yolo-world,unet \
   --mode multi --threads 12 --taskset-bind 0 \
   --instances 24,32,36,38 --warmup 3 --iterations 200 --batch 0,1,2
 
-# Arbitrary-model entrypoint (runs each item; no build step — pass --binary):
+# Arbitrary-model run (same items; pass the model files directly):
 bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
-  --binary /path/to/ov_bench \
+  --binary "$BINARY" \
   --model-file /path/to/model.onnx --suites generic \
   --input-shape <input_name>=N,C,H,W   # only if the model has dynamic shape
 ```
@@ -84,20 +88,21 @@ Top-level entrypoints (invoke these directly; each accepts `--help`):
 
 | Entrypoint | Responsibility |
 |---|---|
-| `/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh` | Build `ov_bench`, then run the registered-model specialization of the all-items entrypoint |
+| `scripts/build_cpp.sh` | Resolve OpenVINO SDK/library paths and build the `ov_bench` binary (standalone CLI) |
 | `tools/ov_bench_all.sh` | General orchestrator: runs every applicable test item, sharing one `--run-dir` |
 | `tools/ov_bench_single.sh` | Single-process item: perf + accuracy + MD5 stability (`--mode all`) |
 | `tools/ov_bench_corescaling.sh` | Core-scaling item: single-process perf swept by physical-core count |
 | `tools/ov_bench_multi.sh` | Multi-instance item: worker waves with synchronized starts and HT sweeps |
 | `tools/ov_bench_summary.sh` | Summary item: merges per-item summaries into `summary_all.tsv` |
 
-Shared libraries in `scripts/` (sourced, never run directly):
+Shared libraries in `scripts/` (sourced by the item entrypoints, never run
+directly — except `build_cpp.sh`, which is a standalone CLI):
 
 | Library | Responsibility |
 |---|---|
 | `parameters.sh` | Test defaults, help and command-line parsing (incl. `--model-file` / `--input-shape` / generic suite) |
 | `validate.sh` | Parameter, suite and required-path validation, dispatched by `OVB_STAGE_ACTIVE` |
-| `build_cpp.sh` | Resolve OpenVINO SDK/library paths and compile C++ |
+| `build_cpp.sh` | Standalone build entrypoint: resolves OpenVINO SDK/library paths, builds `ov_bench` (Release), writes `<build-dir>/ov_bench_runtime.env` |
 | `ovbench_lib.sh` | Common bootstrap: sets roots, sources the other libraries, defines `set_model_args` / `set_input_args` / `suite_models` / `ovb_init` / `log` |
 | `numa.sh` | Generate NUMA-local, core-scaling and per-worker CPU assignments |
 | `summary.sh` | Aggregate per-instance metrics and merge suite summaries |
@@ -128,8 +133,8 @@ Outputs are separated under `multi_instance/<suite>/<model>/bind_1/` and
 `bind_0/`. The aggregate TSV includes `taskset_bind` (1 or 0) for each wave.
 
 ```bash
-bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
-  --openvino-libs /path/to/libopenvino.so \
+bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
+  --binary /path/to/ov_bench \
   --mode multi --threads 12 --taskset-bind 2 \
   --instances 24,32,36,38 --warmup 3 --iterations 200
 ```
@@ -137,7 +142,7 @@ Total FPS is the sum of worker FPS; matrix P99 is the largest worker P99.
 
 ## Unbound Hyper-Threading
 
-The main entry accepts `--hyper-threading 0|1|2` for unbound multi-instance waves:
+`tools/ov_bench_all.sh` accepts `--hyper-threading 0|1|2` for unbound multi-instance waves:
 
 | Value | ENABLE_HYPER_THREADING | Requested INFERENCE_NUM_THREADS |
 |---|---|---|
@@ -158,8 +163,8 @@ thread count after doubling). Each worker JSON retains the effective OpenVINO
 properties; inspect those for the actual runtime configuration.
 
 ```bash
-bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
-  --openvino-libs /path/to/libopenvino.so \
+bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
+  --binary /path/to/ov_bench \
   --mode multi --taskset-bind 0 --threads 12 \
   --instances 24,32,36,38 --hyper-threading 2 \
   --warmup 3 --iterations 200
@@ -215,8 +220,8 @@ its requested `iterations` column is blank in duration mode. Aggregate FPS remai
 the sum of worker FPS, not throughput across the entire pipeline runtime.
 
 ```bash
-bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
-  --openvino-libs /path/to/libopenvino.so \
+bash /home/sgui/2026/ov_bench/tools/ov_bench_all.sh \
+  --binary /path/to/ov_bench \
   --mode multi --taskset-bind 0 --threads 12 --instances 32 \
   --duration 60 --warmup 3
 ```

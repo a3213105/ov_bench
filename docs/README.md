@@ -17,9 +17,7 @@ command line (see [Backend selection](#backend-selection-c-or-python)):
 ./ov_bench --mode self-test          # prefer built C++ binary, else Python
 ```
 
-Root files: `ov_bench` (backend-selector entry script),
-`run_all_models_cpp_perf_stability_accuracy.sh` (native all-items pipeline) and
-`CMakeLists.txt`.
+Root files: `ov_bench` (backend-selector entry script) and `CMakeLists.txt`.
 Layout:
 
 | Directory | Content |
@@ -40,17 +38,18 @@ Layout:
 | Backend selector | Root [`ov_bench`](../ov_bench) | One CLI entry point; selects C++ or Python via `--backend` / `OVBENCH_BACKEND` |
 | Native engine | `src/`, `include/ov_bench/`, `CMakeLists.txt` | `main.cpp` dispatches modes; `application.cpp` owns model adapters; `core.cpp`, `image.cpp`, `random_accuracy.cpp` and `stability.cpp` implement shared inference workflows |
 | Python engine | `python/ov_bench/` | Independent engine with matching CLI/report conventions; modules divide engine dispatch, model/application handling, sessions, image preprocessing, random accuracy, stability and tensor I/O |
-| Pipeline | `run_all_models_cpp_perf_stability_accuracy.sh`, `tools/ov_bench_*.sh`, `scripts/` | Compile-first native registered-model entry; reusable all-items/item orchestration; shared argument parsing, validation, CPU assignment and summary merging |
+| Pipeline | `scripts/build_cpp.sh`, `tools/ov_bench_*.sh`, `scripts/` | Native build entrypoint; reusable all-items/item orchestration; shared argument parsing, validation, CPU allocation and summary merge |
 | Reference utilities | `tools/*.py`, `examples/` | Dataset/reference export, framework workers, report summarizers and model-specific image workflows; these are separate from the generic engine |
 | Validation | `tests/`, `examples/tests/` | Native regression support, backend/unit tests and real-image preprocessing checks |
 
 The root `ov_bench` script prefers an executable `build/ov_bench` (or
 `OVBENCH_CPP_BIN`) when no backend is selected; otherwise it runs the Python
-package using `OVBENCH_PYTHON` or `python3`. The compile-first
-`run_all_models_cpp_perf_stability_accuracy.sh` is specifically the native
-registered-model pipeline. `tools/ov_bench_all.sh` is the reusable all-items
-orchestrator and delegates to the single-process, core-scaling, multi-instance
-and summary item scripts.
+package using `OVBENCH_PYTHON` or `python3`. `scripts/build_cpp.sh` builds the
+native binary; `tools/ov_bench_all.sh` is the all-items orchestrator (build it
+once, then pass `--binary build/ov_bench`) and delegates to the single-process,
+core-scaling, multi-instance and summary item scripts. Registered-model runs
+select `--suites dinov3,yolo-world,pred,unet`; arbitrary models use
+`--model-file`.
 
 ## Supported models
 
@@ -155,8 +154,8 @@ differences between the backends:
 | Prepared datasets | [tools/export_reference.py](../tools/export_reference.py) |
 | Multi-instance performance/stability (bound or unbound waves) | [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh) |
 | Example: full DINOv3 / YOLO-World / UNet test pipeline | [examples/scripts/benchmark_image_models.sh](../examples/scripts/benchmark_image_models.sh) (delegates to the native build and all-items pipeline) |
-| Native C++ pipeline — build + all items (registered models) | [/home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh](../run_all_models_cpp_perf_stability_accuracy.sh) |
-| Native C++ all-items orchestrator (general, supports `--model-file`) | [tools/ov_bench_all.sh](../tools/ov_bench_all.sh) |
+| Native C++ build entrypoint (OpenVINO path resolution + CMake build) | [scripts/build_cpp.sh](../scripts/build_cpp.sh) |
+| Native C++ all-items orchestrator (registered `--suites` or generic `--model-file`) | [tools/ov_bench_all.sh](../tools/ov_bench_all.sh) |
 | Native C++ test items (single-process / core-scaling / multi-instance / summary) | [tools/ov_bench_single.sh](../tools/ov_bench_single.sh), [tools/ov_bench_corescaling.sh](../tools/ov_bench_corescaling.sh), [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh), [tools/ov_bench_summary.sh](../tools/ov_bench_summary.sh) |
 | Reference: Python IR benchmark worker (memory diagnostics) | [examples/tools/python_ir_benchmark.py](../examples/tools/python_ir_benchmark.py) |
 | Reference: shared dataset/manifest helpers | [examples/tools/benchmark_common.py](../examples/tools/benchmark_common.py) |

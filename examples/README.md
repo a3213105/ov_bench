@@ -46,23 +46,23 @@ examples/
 
 ### Full Image-Model Run
 
-The example delegates build, validation, CPU binding, test-item dispatch and
-summary generation to the repository pipeline; it only selects the three
-documented image-model suites. `--mode all` runs single-process performance,
-accuracy and stability, the default core-scaling sweep, multi-instance
-performance, and the combined summary.
+The example selects the three documented image-model suites and delegates test-item
+dispatch to the `tools/ov_bench_all.sh` orchestrator. `--mode all` runs
+single-process performance, accuracy and stability, the default core-scaling
+sweep, multi-instance performance, and the combined summary. Build the native
+binary first (`scripts/build_cpp.sh`), then:
 
 ```bash
+bash scripts/build_cpp.sh --openvino-dir /path/to/openvino/cmake
 bash examples/scripts/benchmark_image_models.sh \
-    --openvino-dir /path/to/openvino/cmake \
     --ir-root /path/to/models_ov \
     --images-dir /path/to/test_images \
     --run-dir /path/to/reports/image_models
 ```
 
-The wrapper forwards additional build/test options, including `--threads`,
-`--precisions`, `--taskset-bind`, `--core-scaling` and `--duration`. It does not
-duplicate the implementation in `scripts/` or `tools/`.
+The wrapper forwards additional test options (e.g. `--threads`, `--precisions`,
+`--taskset-bind`, `--core-scaling`, `--duration`) to `tools/ov_bench_all.sh`.
+It does not duplicate the implementation in `scripts/` or `tools/`.
 
 Scripts here that need the project use it relative to their own location; some
 older one-off scripts still carry frozen absolute paths and are kept as-is for
