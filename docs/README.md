@@ -142,6 +142,76 @@ differences between the backends:
   float16 value view, so byte-level md5 comparisons match the native raw-byte
   handling.
 
+## Testing a new model
+
+End-to-end path for an unregistered ONNX or XML/BIN model. No model ID
+registration, image set or manifest is required: inputs are generated
+natively (see [Generic Model Files](#generic-model-files) for the full input
+format/seed semantics).
+
+1) Build the native binary once per OpenVINO SDK (or use the Python backend):
+
+```bash
+bash scripts/build_cpp.sh --openvino-dir /path/to/openvino/cmake
+source build/ov_bench_runtime.env      # runtime LD_LIBRARY_PATH
+bash build/ov_bench --mode self-test   # smoke test before real runs
+```
+
+2) **Full test** — every pipeline item (single-process
+performance+accuracy+stability, core-scaling sweep, multi-instance waves and the
+combined `summary_all.tsv`) through one orchestrator call. `--mode all` is the
+full pipeline; the engine-level `all` inside the single-process item already
+covers performance, accuracy and MD5 stability:
+
+```bash
+tools/ov_bench_all.sh --binary build/ov_bench \
+  --model-file /path/to/new_model.xml \
+  --input-shape pixel_values=1,3,224,224 \
+  --mode all --precisions FP32,BF16,FP16 \
+  --threads 12 --warmup 3 --iterations 200 --rounds 10 \
+  --core-scaling 1,2,4,8 --taskset-bind 1 \
+  --run-dir reports/new_model_$(date +%Y%m%d_%H%M%S)
+```
+
+Repeat `--model-file FILE` for multiple models; add `--input-shape` per dynamic
+input. Registered families use the same entry point with
+`--suites dinov3,yolo-world,pred,unet` (or the per-family wrappers under
+`examples/scripts/register_*.sh`).
+
+3) **Partial tests** — pick the item or engine mode that is needed:
+
+```bash
+# Pipeline items (still share one --run-dir; choose which stages run):
+tools/ov_bench_all.sh --binary build/ov_bench --model-file M.xml \
+  --mode single --no-core-scaling ...   # only single-process item
+tools/ov_bench_all.sh --binary build/ov_bench --model-file M.xml \
+  --mode multi ...                      # only multi-instance performance waves
+                                        #   (core scaling is a single/all-mode item)
+tools/ov_bench_single.sh     --binary build/ov_bench --model-file M.xml ... \
+tools/ov_bench_corescaling.sh --binary build/ov_bench --model-file M.xml ... \
+tools/ov_bench_multi.sh      --binary build/ov_bench --model-file M.xml ...
+
+# Engine-level single item, one precision, small budget (fastest signal):
+build/ov_bench --model-file M.xml --input-shape pixel_values=1,3,224,224 \
+  --mode performance --precisions FP32 --iterations 50 \
+  --cpu-pinning NO --perf-count NO --output reports/fast_perf
+
+build/ov_bench --model-file M.xml --mode stability  --precisions FP32 --rounds 3 ...
+build/ov_bench --model-file M.xml --mode accuracy   --precisions BF16 ...
+build/ov_bench --model-file M.xml --mode preprocess ...   # dump preprocessing tensors
+```
+
+Pipeline `--mode` accepts `single|multi|all` (which items run); the binary
+`--mode` selects the engine stage (`performance|accuracy|stability|all|
+preprocess|single|random-accuracy|tolerance-search|self-test|gather-guard|
+compare-stability`). Sub-budget flags apply to both: `--precisions` subset,
+`--iterations N` or `--duration SECONDS`, `--batch`, `--perf-count`.
+
+Notes: native random inputs are not business-correct data — `--manifest` +
+`--prepared-inputs` (see [Prepared references](#prepared-references-and-diagnostic-modes))
+is the path for real inputs/references. Generic loading does not apply
+family-specific graph rewrites (e.g. the ViT SDPA BF16 rewrite).
+
 ## Active files
 
 | Purpose | Entry points |

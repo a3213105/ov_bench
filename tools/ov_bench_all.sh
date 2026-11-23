@@ -4,9 +4,11 @@
 # by invoking each item entrypoint with a shared report directory:
 #
 #   single-process  (ov_bench_single.sh)      -- when --mode includes the single stage
-#   core-scaling    (ov_bench_corescaling.sh) -- when the core list is non-empty
-#                                                 (default 1,2,4,8; --no-core-scaling to disable);
-#                                                 runs AFTER the single-process item
+#   core-scaling    (ov_bench_corescaling.sh) -- in single/all modes, when the
+#                                                 core list is non-empty (default
+#                                                 1,2,4,8; --no-core-scaling to
+#                                                 disable); runs AFTER the
+#                                                 single-process item
 #   multi-instance  (ov_bench_multi.sh)       -- when --mode includes the multi stage
 #   summary         (ov_bench_summary.sh)     -- runs when any of the items above produced mergeable output
 #
@@ -62,7 +64,7 @@ if [[ "$MODE" == "single" || "$MODE" == "all" ]]; then
 	summary_items_ran=1
 fi
 
-if ((${#CORE_SCALING_LIST[@]} > 0)); then
+if [[ "$MODE" == "single" || "$MODE" == "all" ]] && ((${#CORE_SCALING_LIST[@]} > 0)); then
 	run_item "ov_bench_corescaling.sh"
 fi
 
