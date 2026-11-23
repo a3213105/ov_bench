@@ -38,6 +38,9 @@ examples/
 | File | Reference implementation for |
 |---|---|
 | `scripts/benchmark_image_models.sh` | Full native test pipeline for DINOv3, YOLO-World and UNet, delegated to the repository build/all-items entrypoint |
+| `scripts/register_dinov3.sh` | DINOv3 suite registration + run (→ `tools/register_suite.sh --suite dinov3`) |
+| `scripts/register_yolo_world.sh` | YOLO-World suite registration + run (→ `tools/register_suite.sh --suite yolo-world`) |
+| `scripts/register_unet.sh` | UNet suite registration + run (→ `tools/register_suite.sh --suite unet`) |
 | `tools/benchmark_common.py` | Shared model-name/manifest helpers used only by the other files here |
 | `tools/check_precision_memory.py` | Python-IR RSS/PSS memory diagnostics for the image models (DinoV3/YOLO) |
 | `tools/python_ir_benchmark.py` | Python-IR performance worker behind the memory/comparison checks |
@@ -63,6 +66,28 @@ bash examples/scripts/benchmark_image_models.sh \
 The wrapper forwards additional test options (e.g. `--threads`, `--precisions`,
 `--taskset-bind`, `--core-scaling`, `--duration`) to `tools/ov_bench_all.sh`.
 It does not duplicate the implementation in `scripts/` or `tools/`.
+
+### Suite Registration
+
+The per-suite registration (family, model ID list, model root, input source)
+lives in `tools/register_suite.sh` (see `scripts/README.md`). The family
+examples above are thin wrappers over it, e.g.:
+
+```bash
+# Registration only (sourceable key="value" lines):
+bash examples/scripts/register_dinov3.sh --print \
+    --models dinov3-vits16-pretrain-lvd1689m \
+    --ir-root /path/to/models_ov --images-dir /path/to/test_images
+
+# Register and run:
+bash examples/scripts/register_yolo_world.sh \
+    --ir-root /path/to/models_ov --images-dir /path/to/test_images \
+    --binary build/ov_bench --mode all
+```
+
+The legacy pred-suite registration example is archived out-of-tree under
+`tmp/examples/scripts/register_pred.sh` (the pred family is not part of the
+default image-model flow).
 
 Scripts here that need the project use it relative to their own location; some
 older one-off scripts still carry frozen absolute paths and are kept as-is for

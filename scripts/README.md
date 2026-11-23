@@ -89,6 +89,7 @@ Top-level entrypoints (invoke these directly; each accepts `--help`):
 | Entrypoint | Responsibility |
 |---|---|
 | `scripts/build_cpp.sh` | Resolve OpenVINO SDK/library paths and build the `ov_bench` binary (standalone CLI) |
+| `tools/register_suite.sh` | Manually register one suite (family, model CSV, model root, input source); `--print` emits the resolved registration, otherwise execs `tools/ov_bench_all.sh` with forwarded pipeline options |
 | `tools/ov_bench_all.sh` | General orchestrator: runs every applicable test item, sharing one `--run-dir` |
 | `tools/ov_bench_single.sh` | Single-process item: perf + accuracy + MD5 stability (`--mode all`) |
 | `tools/ov_bench_corescaling.sh` | Core-scaling item: single-process perf swept by physical-core count |

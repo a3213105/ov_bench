@@ -155,6 +155,7 @@ differences between the backends:
 | Multi-instance performance/stability (bound or unbound waves) | [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh) |
 | Example: full DINOv3 / YOLO-World / UNet test pipeline | [examples/scripts/benchmark_image_models.sh](../examples/scripts/benchmark_image_models.sh) (delegates to the native build and all-items pipeline) |
 | Native C++ build entrypoint (OpenVINO path resolution + CMake build) | [scripts/build_cpp.sh](../scripts/build_cpp.sh) |
+| Suite registration (`--suites`, per-family model CSV, roots and inputs) | [tools/register_suite.sh](../tools/register_suite.sh) (`--print` or run-through to the orchestrator); family examples under [examples/scripts/](../examples/README.md) |
 | Native C++ all-items orchestrator (registered `--suites` or generic `--model-file`) | [tools/ov_bench_all.sh](../tools/ov_bench_all.sh) |
 | Native C++ test items (single-process / core-scaling / multi-instance / summary) | [tools/ov_bench_single.sh](../tools/ov_bench_single.sh), [tools/ov_bench_corescaling.sh](../tools/ov_bench_corescaling.sh), [tools/ov_bench_multi.sh](../tools/ov_bench_multi.sh), [tools/ov_bench_summary.sh](../tools/ov_bench_summary.sh) |
 | Reference: Python IR benchmark worker (memory diagnostics) | [examples/tools/python_ir_benchmark.py](../examples/tools/python_ir_benchmark.py) |
