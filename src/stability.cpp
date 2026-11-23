@@ -24,7 +24,7 @@ std::string hex(const std::string& value) {
 }
 
 std::string unhex(const std::string& value) {
-    if (value.empty() || value.size() % 2) throw std::invalid_argument("Invalid encoded filename field");
+    if (value.empty() || value.size() % 2) throw OVBError("Invalid encoded filename field");
     const auto digit = [](char c) { return c <= '9' ? c - '0' : c - 'a' + 10; };
     std::string out;
     for (size_t i = 0; i < value.size(); i += 2)
@@ -47,7 +47,7 @@ std::string decode(const std::string& value) {
     std::string out;
     for (size_t i = 0; i < value.size(); ++i) {
         if (value[i] == '%') {
-            if (i + 2 >= value.size()) throw std::invalid_argument("Invalid percent escape");
+            if (i + 2 >= value.size()) throw OVBError("Invalid percent escape");
             out += unhex(value.substr(i + 1, 2));
             i += 2;
         } else out += value[i];
@@ -66,7 +66,7 @@ size_t number(const std::string& value, bool allow_zero) {
     size_t used = 0;
     const auto n = std::stoull(value, &used);
     if (used != value.size() || (!allow_zero && n == 0) || n > SIZE_MAX)
-        throw std::invalid_argument("Invalid stability round/port");
+        throw OVBError("Invalid stability round/port");
     return static_cast<size_t>(n);
 }
 }
@@ -79,12 +79,12 @@ std::string stability_filename(const OutputIdentity& id) {
     if (id.image.empty() || id.model.empty() || id.configuration.empty() || id.round == 0 ||
         !std::regex_match(id.process, std::regex("[0-9]+-[0-9a-f]{16}")) ||
         (id.precision != "FP32" && id.precision != "BF16" && id.precision != "FP16"))
-        throw std::invalid_argument("Invalid stability output identity");
+        throw OVBError("Invalid stability output identity");
     const auto name = "stb2__" + encode(id.image) + "__" + id.precision + "__" + id.process +
            "__" + std::to_string(id.round) + "__" + encode(id.model) +
            "__" + std::to_string(id.port) + "__" + encode(id.configuration) +
            "__" + random_id() + ".bin";
-    if (name.size() > 255) throw std::invalid_argument("Encoded stability filename exceeds 255 bytes");
+    if (name.size() > 255) throw OVBError("Encoded stability filename exceeds 255 bytes");
     return name;
 }
 
@@ -93,13 +93,13 @@ OutputIdentity parse_stability_filename(const std::string& filename) {
         R"(^stb2__((?:[A-Za-z0-9.-]|%[0-9a-f]{2})+)__(FP32|BF16|FP16)__([0-9]+-[0-9a-f]{16})__([0-9]+)__((?:[A-Za-z0-9.-]|%[0-9a-f]{2})+)__([0-9]+)__((?:[A-Za-z0-9.-]|%[0-9a-f]{2})+)__[0-9a-f]{16}\.bin$)");
     std::smatch match;
     if (!std::regex_match(filename, match, format))
-        throw std::invalid_argument("Malformed stability filename: " + filename);
+        throw OVBError("Malformed stability filename: " + filename);
     return {decode(match[1]), decode(match[5]), match[2], decode(match[7]), match[3],
             number(match[4], false), number(match[6], true)};
 }
 
 nlohmann::json compare_stability_directories(const std::vector<std::filesystem::path>& directories) {
-    if (directories.empty()) throw std::invalid_argument("At least one result directory is required");
+    if (directories.empty()) throw OVBError("At least one result directory is required");
     using Key = std::tuple<std::string, std::string, std::string, size_t, std::string>;
     using json = nlohmann::json;
     std::map<Key, std::vector<json>> groups;
@@ -108,13 +108,13 @@ nlohmann::json compare_stability_directories(const std::vector<std::filesystem::
     size_t ignored = 0;
     for (const auto& directory : directories) {
         if (!std::filesystem::is_directory(directory))
-            throw std::invalid_argument("Not a directory: " + directory.string());
+            throw OVBError("Not a directory: " + directory.string());
         size_t found = 0;
         for (const auto& entry : std::filesystem::recursive_directory_iterator(directory)) {
             if (!entry.is_regular_file() || entry.path().extension() != ".bin") continue;
             const auto name = entry.path().filename().string();
             if (name.rfind("stb1__", 0) == 0)
-                throw std::invalid_argument("Unsupported legacy stability filename (expected stb2): " + name);
+                throw OVBError("Unsupported legacy stability filename (expected stb2): " + name);
             if (name.rfind("stb2__", 0) != 0) { ++ignored; continue; }
             ++found;
             const auto file = std::filesystem::canonical(entry.path());

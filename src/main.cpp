@@ -189,10 +189,10 @@ struct Options {
 
 size_t positive_integer(const std::string& value, bool zero = false) {
     if (value.empty() || value.find_first_not_of("0123456789") != std::string::npos)
-        throw std::invalid_argument("Expected nonnegative integer, got: " + value);
+        throw ovbench::OVBError("Expected nonnegative integer, got: " + value);
     const auto n = std::stoull(value);
     if ((!zero && !n) || n > 1000000000)
-        throw std::invalid_argument("Integer out of range: " + value);
+        throw ovbench::OVBError("Integer out of range: " + value);
     return static_cast<size_t>(n);
 }
 
@@ -202,10 +202,10 @@ std::vector<std::string> split(const std::string& value) {
     std::string item;
     while (std::getline(input, item, ',')) {
         if (item.empty() || std::find(items.begin(), items.end(), item) != items.end())
-            throw std::invalid_argument("Empty or duplicate CSV item: " + value);
+            throw ovbench::OVBError("Empty or duplicate CSV item: " + value);
         items.push_back(item);
     }
-    if (items.empty() || value.back() == ',') throw std::invalid_argument("Invalid CSV: " + value);
+    if (items.empty() || value.back() == ',') throw ovbench::OVBError("Invalid CSV: " + value);
     return items;
 }
 
@@ -218,17 +218,17 @@ void parse_tolerances(const std::string& key, const std::string& value,
     for (const auto& item : split(value)) {
         const auto separator = item.find('=');
         if (separator == std::string::npos || separator == 0 || separator + 1 == item.size())
-            throw std::invalid_argument(key + " requires PRECISION=VALUE[,PRECISION=VALUE]");
+            throw ovbench::OVBError(key + " requires PRECISION=VALUE[,PRECISION=VALUE]");
         const auto precision = item.substr(0, separator);
         if (precision != "FP32" && precision != "BF16" && precision != "FP16")
-            throw std::invalid_argument("Unsupported tolerance precision: " + precision);
+            throw ovbench::OVBError("Unsupported tolerance precision: " + precision);
         const auto number = item.substr(separator + 1);
         size_t parsed = 0;
         const auto tolerance = std::stod(number, &parsed);
         if (parsed != number.size() || !std::isfinite(tolerance) || tolerance < 0)
-            throw std::invalid_argument(key + " values must be finite and nonnegative");
+            throw ovbench::OVBError(key + " values must be finite and nonnegative");
         if (!tolerances.emplace(precision, tolerance).second)
-            throw std::invalid_argument("Duplicate " + key + " precision: " + precision);
+            throw ovbench::OVBError("Duplicate " + key + " precision: " + precision);
     }
 }
 
@@ -287,7 +287,7 @@ Options parse(int argc, char** argv) {
         if (key == "--no-performance-output-files") { o.save_performance_outputs = false; continue; }
         if (key == "--no-sdpa-bf16") { o.sdpa_bf16 = false; continue; }
         if (key == "--resample-common-cosine-failures") { o.resample_common_cosine_failures = true; continue; }
-        if (i + 1 == argc) throw std::invalid_argument("Missing value for " + key);
+        if (i + 1 == argc) throw ovbench::OVBError("Missing value for " + key);
         const std::string value = argv[++i];
         if (key == "--model-root") o.model_root = value;
         else if (key == "--model-file") o.model_file = value;
@@ -299,7 +299,7 @@ Options parse(int argc, char** argv) {
         else if (key == "--input-shape") {
             const auto separator = value.find('=');
             if (separator == std::string::npos || separator == 0)
-                throw std::invalid_argument("--input-shape requires NAME=DIM[,DIM...]");
+                throw ovbench::OVBError("--input-shape requires NAME=DIM[,DIM...]");
             ov::Shape shape;
             const auto dimensions = value.substr(separator + 1);
             if (!dimensions.empty()) {
@@ -307,10 +307,10 @@ Options parse(int argc, char** argv) {
                 std::string dimension;
                 while (std::getline(stream, dimension, ','))
                     shape.push_back(positive_integer(dimension));
-                if (dimensions.back() == ',') throw std::invalid_argument("Invalid --input-shape dimension list");
+                if (dimensions.back() == ',') throw ovbench::OVBError("Invalid --input-shape dimension list");
             }
             if (!o.input_shapes.emplace(value.substr(0, separator), shape).second)
-                throw std::invalid_argument("Duplicate --input-shape input name");
+                throw ovbench::OVBError("Duplicate --input-shape input name");
         }
         else if (key == "--output") o.output = value;
         else if (key == "-batch" || key == "--batch") {
@@ -320,7 +320,7 @@ Options parse(int argc, char** argv) {
             for (const auto& item : values) {
                 const auto batch = static_cast<int>(positive_integer(item, true));
                 if (!unique_batches.insert(batch).second)
-                    throw std::invalid_argument("Duplicate batch value: " + item);
+                    throw ovbench::OVBError("Duplicate batch value: " + item);
                 o.batches.push_back(batch);
             }
             o.batch = o.batches.front();
@@ -338,17 +338,17 @@ Options parse(int argc, char** argv) {
         else if (key == "--seed") o.seed = positive_integer(value, true);
         else if (key == "--hyper-threading") {
             if (value != "YES" && value != "NO")
-                throw std::invalid_argument("--hyper-threading must be YES or NO");
+                throw ovbench::OVBError("--hyper-threading must be YES or NO");
             o.hyper_threading = value == "YES";
         }
         else if (key == "--cpu-pinning") {
             if (value != "YES" && value != "NO")
-                throw std::invalid_argument("--cpu-pinning must be YES or NO");
+                throw ovbench::OVBError("--cpu-pinning must be YES or NO");
             o.cpu_pinning = value == "YES";
         }
         else if (key == "--perf-count") {
             if (value != "YES" && value != "NO")
-                throw std::invalid_argument("--perf-count must be YES or NO");
+                throw ovbench::OVBError("--perf-count must be YES or NO");
             o.profiling = value == "YES";
         }
         else if (key == "--model") o.model = value;
@@ -363,7 +363,7 @@ Options parse(int argc, char** argv) {
             size_t parsed = 0;
             const auto duration = std::stod(value, &parsed);
             if (parsed != value.size() || !std::isfinite(duration) || duration <= 0)
-                throw std::invalid_argument("--duration must be finite and positive seconds");
+                throw ovbench::OVBError("--duration must be finite and positive seconds");
             o.duration_seconds = duration;
         }
         else if (key == "--rounds") o.rounds = positive_integer(value);
@@ -377,92 +377,92 @@ Options parse(int argc, char** argv) {
             size_t parsed = 0;
             o.threshold = std::stod(value, &parsed);
             if (parsed != value.size() || !std::isfinite(o.threshold) || o.threshold < -1 || o.threshold >= 1)
-                throw std::invalid_argument("threshold must be finite in [-1,1)");
-        } else throw std::invalid_argument("Unknown option: " + key);
+                throw ovbench::OVBError("threshold must be finite in [-1,1)");
+        } else throw ovbench::OVBError("Unknown option: " + key);
     }
     const bool batch_supported = o.mode == "performance" || o.mode == "accuracy" ||
         o.mode == "stability" || o.mode == "all" || o.mode == "preprocess" || o.mode == "single";
     if (!batch_supported &&
         (o.batches.size() > 1 || std::any_of(o.batches.begin(), o.batches.end(),
                                              [](int batch) { return batch != 0; })))
-        throw std::invalid_argument("Batch lists and static batch values require a model execution mode");
+        throw ovbench::OVBError("Batch lists and static batch values require a model execution mode");
     if (o.duration_seconds.has_value()) {
         if (o.iterations_explicit)
-            throw std::invalid_argument("--iterations and --duration are mutually exclusive");
+            throw ovbench::OVBError("--iterations and --duration are mutually exclusive");
         if (o.mode != "performance" && o.mode != "all")
-            throw std::invalid_argument("--duration requires --mode performance or all");
+            throw ovbench::OVBError("--duration requires --mode performance or all");
     }
     if (o.input_count_explicit && o.mode != "performance" && o.mode != "all")
-        throw std::invalid_argument("--input-count requires --mode performance or all");
+        throw ovbench::OVBError("--input-count requires --mode performance or all");
     if (o.input_count_explicit && (o.prepared || !o.manifest.empty() || !o.model_file.empty()))
-        throw std::invalid_argument("--input-count requires generated prediction inputs, not a manifest or --model-file");
+        throw ovbench::OVBError("--input-count requires generated prediction inputs, not a manifest or --model-file");
     if ((!o.atol.empty() || !o.rtol.empty()) && o.mode != "random-accuracy")
-        throw std::invalid_argument("--atol and --rtol require --mode random-accuracy");
+        throw ovbench::OVBError("--atol and --rtol require --mode random-accuracy");
     if (o.resample_common_cosine_failures && o.mode != "random-accuracy")
-        throw std::invalid_argument("--resample-common-cosine-failures requires --mode random-accuracy");
+        throw ovbench::OVBError("--resample-common-cosine-failures requires --mode random-accuracy");
     if (o.mode == "tolerance-search" && o.precision != "FP32")
-        throw std::invalid_argument("tolerance-search requires --precisions FP32");
+        throw ovbench::OVBError("tolerance-search requires --precisions FP32");
     if (!o.stability_dirs.empty() && o.mode != "compare-stability")
-        throw std::invalid_argument("--stability-dir requires --mode compare-stability");
+        throw ovbench::OVBError("--stability-dir requires --mode compare-stability");
     if (!o.cpu_plugin.empty() && o.mode != "gather-guard")
-        throw std::invalid_argument("--cpu-plugin requires --mode gather-guard");
+        throw ovbench::OVBError("--cpu-plugin requires --mode gather-guard");
     if (o.mode == "self-test" || o.mode == "gather-guard") return o;
     if (o.mode == "compare-stability") {
         if (o.output.empty() || fs::exists(o.output) || o.stability_dirs.empty())
-            throw std::invalid_argument("compare-stability requires --stability-dir and --output naming a new JSON file");
+            throw ovbench::OVBError("compare-stability requires --stability-dir and --output naming a new JSON file");
         return o;
     }
     if (!o.model_file.empty()) {
         if (!fs::is_regular_file(o.model_file))
-            throw std::invalid_argument("Model file not found: " + o.model_file.string());
+            throw ovbench::OVBError("Model file not found: " + o.model_file.string());
         if (!o.model_root.empty() || o.model != "all" || o.prepared ||
             !o.manifest.empty() || !o.images.empty())
-            throw std::invalid_argument("--model-file generates random inputs; do not specify model-root, model, images or manifest");
+            throw ovbench::OVBError("--model-file generates random inputs; do not specify model-root, model, images or manifest");
         if (o.mode != "performance" && o.mode != "accuracy" && o.mode != "stability" &&
             o.mode != "all" && o.mode != "preprocess")
-            throw std::invalid_argument("--model-file supports performance, accuracy, stability, all and preprocess");
+            throw ovbench::OVBError("--model-file supports performance, accuracy, stability, all and preprocess");
         o.model_file = fs::absolute(o.model_file);
         o.model_root = o.model_file.parent_path();
     } else if (!o.input_shapes.empty() || o.random_samples != 10) {
-        throw std::invalid_argument("--input-shape and --samples require --model-file");
+        throw ovbench::OVBError("--input-shape and --samples require --model-file");
     }
     if (o.output.empty() || o.model_root.empty())
-        throw std::invalid_argument("--output and --model-root are required");
+        throw ovbench::OVBError("--output and --model-root are required");
     if (o.hyper_threading.has_value() &&
         (o.mode == "random-accuracy" || o.mode == "tolerance-search"))
-        throw std::invalid_argument("--hyper-threading is not supported by random-accuracy or tolerance-search");
+        throw ovbench::OVBError("--hyper-threading is not supported by random-accuracy or tolerance-search");
     if (o.mode != "performance" && o.mode != "accuracy" && o.mode != "stability" &&
         o.mode != "all" && o.mode != "preprocess" && o.mode != "single" &&
         o.mode != "random-accuracy" && o.mode != "tolerance-search")
-        throw std::invalid_argument("Unsupported mode: " + o.mode);
+        throw ovbench::OVBError("Unsupported mode: " + o.mode);
     if ((o.mode == "all" || o.mode == "stability") && o.rounds < 2)
-        throw std::invalid_argument("Stability requires at least two rounds");
+        throw ovbench::OVBError("Stability requires at least two rounds");
     if ((o.prepared || o.mode == "single") && o.manifest.empty())
-        throw std::invalid_argument("Prepared inputs and accuracy require --manifest");
+        throw ovbench::OVBError("Prepared inputs and accuracy require --manifest");
     if (o.mode == "single" &&
         (!o.prepared || o.model == "all" || split(o.model).size() != 1 ||
          split(o.precision).size() != 1 || o.step_timeout_seconds == 0))
-        throw std::invalid_argument(
+        throw ovbench::OVBError(
             "Single mode requires --prepared-inputs, one model, one precision, and a positive --step-timeout-seconds");
     if (!o.prepared && o.model_file.empty() && o.images.empty() && o.mode != "random-accuracy" && o.mode != "tolerance-search")
-        throw std::invalid_argument("Native image input requires --images");
+        throw ovbench::OVBError("Native image input requires --images");
     const auto precisions = split(o.precision);
     if (o.resample_common_cosine_failures &&
         (std::find(precisions.begin(), precisions.end(), "BF16") == precisions.end() ||
          std::find(precisions.begin(), precisions.end(), "FP16") == precisions.end()))
-        throw std::invalid_argument("--resample-common-cosine-failures requires both BF16 and FP16");
+        throw ovbench::OVBError("--resample-common-cosine-failures requires both BF16 and FP16");
     for (const auto& precision : precisions)
         if (precision != "FP32" && precision != "BF16" && precision != "FP16")
-            throw std::invalid_argument("Unsupported precision: " + precision);
+            throw ovbench::OVBError("Unsupported precision: " + precision);
     if ((o.mode == "random-accuracy" || o.mode == "tolerance-search") &&
         (o.prepared || !o.manifest.empty() || !o.images.empty() || !o.start_signal.empty()))
-        throw std::invalid_argument("Random accuracy generates fresh inputs; do not specify a dataset, images, or start signal");
+        throw ovbench::OVBError("Random accuracy generates fresh inputs; do not specify a dataset, images, or start signal");
     if (o.mode != "random-accuracy" && o.mode != "tolerance-search" &&
         (!o.reference_root.empty() || !o.reference_config.empty() || !o.random_shapes.empty() ||
          o.reference_python != "python3" || (o.seed != 43 && o.model_file.empty())))
-        throw std::invalid_argument("Random input/reference options require --mode random-accuracy");
+        throw ovbench::OVBError("Random input/reference options require --mode random-accuracy");
     if (o.reference_python.empty() || o.step_timeout_seconds == 0)
-        throw std::invalid_argument("Reference Python and timeout must be nonempty and positive");
+        throw ovbench::OVBError("Reference Python and timeout must be nonempty and positive");
     return o;
 }
 
@@ -556,7 +556,7 @@ std::vector<fs::path> image_files(const fs::path& source) {
         return extension == ".jpg" || extension == ".jpeg" || extension == ".png";
     };
     if (fs::is_regular_file(source)) {
-        if (!supported(source)) throw std::invalid_argument("Supported image formats: JPEG, PNG");
+        if (!supported(source)) throw ovbench::OVBError("Supported image formats: JPEG, PNG");
         files.push_back(source);
     } else {
         for (const auto& entry : fs::directory_iterator(source))
@@ -744,9 +744,9 @@ void reshape_model_batch(const std::shared_ptr<ov::Model>& model, int batch) {
     for (const auto& input : model->inputs()) {
         auto shape = input.get_partial_shape();
         if (shape.rank().is_dynamic() || shape.rank().get_length() == 0)
-            throw std::invalid_argument("Static batch reshape requires ranked, non-scalar model inputs");
+            throw ovbench::OVBError("Static batch reshape requires ranked, non-scalar model inputs");
         if (shape[0].is_static() && shape[0].get_length() != batch)
-            throw std::invalid_argument("Requested batch " + std::to_string(batch) +
+            throw ovbench::OVBError("Requested batch " + std::to_string(batch) +
                                         " conflicts with static input batch " +
                                         std::to_string(shape[0].get_length()) + " for " + input.get_any_name());
         shape[0] = batch;
@@ -782,7 +782,7 @@ json input_ports(const ov::Model& model) {
 
 int run(const Options& o) {
     if (o.batches.size() > 1 && !o.start_signal.empty())
-        throw std::invalid_argument("Multiple --batch values cannot be combined with --start-signal; run batch variants separately");
+        throw ovbench::OVBError("Multiple --batch values cannot be combined with --start-signal; run batch variants separately");
     if (o.mode == "gather-guard") return ovbench::run_gather_guard_test(o.cpu_plugin);
     if (o.mode == "self-test") return ovbench::run_random_accuracy_core_tests();
     if (o.mode == "compare-stability") {
@@ -860,7 +860,7 @@ int run(const Options& o) {
     }
     if (o.mode == "single" &&
         (specs.size() != 1 || split(o.precision).size() != 1 || !o.prepared))
-        throw std::invalid_argument("Single mode requires one model, one precision, and prepared inputs");
+        throw ovbench::OVBError("Single mode requires one model, one precision, and prepared inputs");
     if (o.mode == "single") {
         struct sigaction action {};
         action.sa_handler = timeout_handler;
@@ -872,7 +872,7 @@ int run(const Options& o) {
     if (!o.start_signal.empty() &&
         (o.mode != "performance" || specs.size() != 1 || split(o.precision).size() != 1 ||
          !fs::is_directory(o.start_signal.parent_path()) || fs::exists(o.start_signal)))
-        throw std::invalid_argument("--start-signal requires one performance case and a new signal in an existing directory");
+        throw ovbench::OVBError("--start-signal requires one performance case and a new signal in an existing directory");
     const json manifest = o.manifest.empty() ? json::object() : read_json(o.manifest);
     if (fs::exists(o.output)) throw std::runtime_error("Output directory already exists: " + o.output.string());
     fs::create_directories(o.output);
@@ -1272,8 +1272,17 @@ int main(int argc, char** argv) {
     try {
         options = parse(argc, argv);
         return run(options);
-    } catch (const std::exception& error) {
+    } catch (const ovbench::OVBError& error) {
+        // Mirrors the Python backend: OVBError (usage) -> 2.
         std::cerr << "ERROR: " << error.what() << '\n';
         return 2;
+    } catch (const std::invalid_argument& error) {
+        // Legacy usage-class exception, same contract as OVBError.
+        std::cerr << "ERROR: " << error.what() << '\n';
+        return 2;
+    } catch (const std::exception& error) {
+        // Mirrors the Python backend: OVRuntimeError (mid-run) -> 1.
+        std::cerr << "ERROR: " << error.what() << '\n';
+        return 1;
     }
 }

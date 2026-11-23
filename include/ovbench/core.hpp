@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 
 #include <cstddef>
+#include <exception>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -11,6 +12,19 @@
 #include <vector>
 
 namespace ovbench {
+
+// Usage-class exception (exit code 2), mirroring the Python backend's
+// OVBError (a ValueError subclass). Runtime failures remain
+// std::runtime_error and exit with code 1, identical to the Python
+// OVRuntimeError path.
+class OVBError : public std::exception {
+public:
+    explicit OVBError(std::string message) : message_(std::move(message)) {}
+    const char* what() const noexcept override { return message_.c_str(); }
+
+private:
+    std::string message_;
+};
 
 struct Stats {
     double mean_ms, p50_ms, p90_ms, p99_ms, throughput_fps;

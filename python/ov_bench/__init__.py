@@ -16,9 +16,12 @@ Porting notes (differences from the C++ engine, documented on purpose):
   whose raw bits equal the true bf16 bits (SDK 2025.4 behaviour). Byte- and
   bit-level consumers (md5, gather-guard) therefore compare the bit patterns
   directly, identical in meaning to the native raw-byte handling.
-- The FP16 DINOv3 ViT SDPA->BF16 graph rewrite is native-only; the Python
-  backend reports 0 rewritten nodes (so un-rewritten FP16 attention may show
-  lower cosine similarity on those models).
+- The FP16 DINOv3 ViT SDPA->BF16 graph rewrite is implemented on both
+  backends with the same rewrite semantics (a BF16 subgraph per SDPA node
+  plus a Convert back to the original element type); the Python port uses
+  ``ov.opset13.convert`` / ``ov.opset13.scaled_dot_product_attention`` with
+  the in-place ``node.output(0).replace(...)`` primitive and reports the
+  same rewritten-node count (12) as the native engine.
 
 Selecting the backend:
     ./ov_bench --backend python --mode <mode> ...   # Python backend (this package)

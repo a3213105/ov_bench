@@ -324,10 +324,10 @@ int run_random_accuracy(const std::vector<ModelSpec>& specs, const RandomAccurac
         (o.tolerance_search ||
          std::find(o.precisions.begin(), o.precisions.end(), "BF16") == o.precisions.end() ||
          std::find(o.precisions.begin(), o.precisions.end(), "FP16") == o.precisions.end()))
-        throw std::invalid_argument("Resampling requires random-accuracy with both BF16 and FP16");
+        throw OVBError("Resampling requires random-accuracy with both BF16 and FP16");
     if (o.tolerance_search && (o.precisions != std::vector<std::string>{"FP32"} ||
                                !o.atol.empty() || !o.rtol.empty()))
-        throw std::invalid_argument("Tolerance search requires FP32 only with default base tolerances");
+        throw OVBError("Tolerance search requires FP32 only with default base tolerances");
     if (fs::exists(o.output)) throw std::runtime_error("Output directory already exists: " + o.output.string());
     fs::create_directories(o.output);
     json report{{"schema_version", 2}, {"status", "RUNNING"}, {"mode", "random-accuracy"},
@@ -353,7 +353,7 @@ int run_random_accuracy(const std::vector<ModelSpec>& specs, const RandomAccurac
         const auto configs = o.reference_config.empty() ? json::object() : read_json(o.reference_config);
         const auto shape_configs = o.shapes.empty() ? json::object() : read_json(o.shapes);
         if (!configs.is_object() || !shape_configs.is_object())
-            throw std::invalid_argument("Reference config and random shapes must be objects keyed by model ID");
+            throw OVBError("Reference config and random shapes must be objects keyed by model ID");
         json cpu_versions = json::object();
         // OpenVINO 2025.4.2 _gather build corrupts the returned version map when
         // get_versions() is invoked on a prvalue Core() temporary within the same

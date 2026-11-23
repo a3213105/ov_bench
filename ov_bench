@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# ov_bench — single entry point that runs either the native C++ engine or the
+# Python engine with the SAME command line. Select the backend with:
+#
+#   --backend cpp | python        (or OVBENCH_BACKEND=cpp|python)
+#
+# Without --backend the tool prefers the native binary when it is already
+# built (build/ov_benchmark or OVBENCH_CPP_BIN) and otherwise falls back to the
+# Python engine.
+#
+# Examples:
+#   ./ov_bench --backend python --model-root ../models_ov --output out \
+#       --mode performance --model dinov3-vits16-pretrain-lvd1689m --images ../test_images
+#   ./ov_bench --backend cpp --mode self-test
+#
+# Environment overrides:
+#   OVBENCH_CPP_BIN   Path to the native ov_benchmark executable
+#   OVBENCH_PYTHON    Python interpreter used for the Python backend
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND="${OVBENCH_BACKEND:-}"
+CPP_BIN="${OVBENCH_CPP_BIN:-}"
+PYTHON_BIN="${OVBENCH_PYTHON:-python3}"
+ARGS=()
+
+while (($#)); do
+	case "$1" in
+		--backend) BACKEND="${2:?missing value for --backend}"; shift 2; continue ;;
+		--backend=*) BACKEND="${1#*=}"; shift; continue ;;
+		--binary) CPP_BIN="${2:?missing value for --binary}"; shift 2; continue ;;
+		--binary=*) CPP_BIN="${1#*=}"; shift; continue ;;
+		*) ARGS+=("$1"); shift ;;
+	esac
+done
+
+if [[ -z "$BACKEND" ]]; then
+	if [[ -n "${CPP_BIN:-}" && -x "$CPP_BIN" ]] || [[ -x "$ROOT/build/ov_benchmark" ]]; then
+		BACKEND="cpp"
+	else
+		BACKEND="python"
+	fi
+fi
+
+case "$BACKEND" in
+	python)
+		export PYTHONPATH="$ROOT/python${PYTHONPATH:+:$PYTHONPATH}"
+		exec "$PYTHON_BIN" -m ov_bench "${ARGS[@]}"
+		;;
+	cpp)
+		BIN="${CPP_BIN:-$ROOT/build/ov_benchmark}"
+		if [[ ! -x "$BIN" ]]; then
+			echo "C++ ov_benchmark binary not found at: $BIN" >&2
+			echo "Build it with scripts/build_cpp.sh, pass --binary, or rerun with --backend python" >&2
+			exit 2
+		fi
+		exec "$BIN" "${ARGS[@]}"
+		;;
+	*)
+		echo "Unknown backend: $BACKEND (expected 'cpp' or 'python')" >&2
+		exit 2
+		;;
+esac

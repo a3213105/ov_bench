@@ -1,4 +1,5 @@
 #include "ovbench/image.hpp"
+#include "ovbench/core.hpp"
 
 #include <algorithm>
 #include <array>
@@ -356,15 +357,15 @@ Image decode_image(const std::filesystem::path& path) {
 ov::Tensor preprocess_image(const std::filesystem::path& path, const std::string& family,
                             size_t size, double scale) {
     if (family != "dinov3" && family != "yolo-world" && family != "unet") {
-        throw std::invalid_argument("Unsupported image preprocessing family: " + family);
+        throw ovbench::OVBError("Unsupported image preprocessing family: " + family);
     }
     if (family != "unet" &&
         (size == 0 || size > static_cast<size_t>(std::numeric_limits<int64_t>::max()))) {
-        throw std::invalid_argument("Image preprocessing size must be positive and representable");
+        throw ovbench::OVBError("Image preprocessing size must be positive and representable");
     }
     if (family == "unet") {
         if (!std::isfinite(scale) || scale <= 0.0) {
-            throw std::invalid_argument("UNet preprocessing scale must be finite and positive");
+            throw ovbench::OVBError("UNet preprocessing scale must be finite and positive");
         }
     } else {
         checked_rgb_bytes(size, size);

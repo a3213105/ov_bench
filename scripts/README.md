@@ -128,7 +128,7 @@ Outputs are separated under `multi_instance/<suite>/<model>/bind_1/` and
 `bind_0/`. The aggregate TSV includes `taskset_bind` (1 or 0) for each wave.
 
 ```bash
-bash /home/sgui/2026/ov_bench/scripts/run_all_models_cpp_perf_stability_accuracy.sh \
+bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
   --openvino-libs /path/to/libopenvino.so \
   --mode multi --threads 12 --taskset-bind 2 \
   --instances 24,32,36,38 --warmup 3 --iterations 200
@@ -158,7 +158,7 @@ thread count after doubling). Each worker JSON retains the effective OpenVINO
 properties; inspect those for the actual runtime configuration.
 
 ```bash
-bash /home/sgui/2026/ov_bench/scripts/run_all_models_cpp_perf_stability_accuracy.sh \
+bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
   --openvino-libs /path/to/libopenvino.so \
   --mode multi --taskset-bind 0 --threads 12 \
   --instances 24,32,36,38 --hyper-threading 2 \
@@ -215,7 +215,7 @@ its requested `iterations` column is blank in duration mode. Aggregate FPS remai
 the sum of worker FPS, not throughput across the entire pipeline runtime.
 
 ```bash
-bash /home/sgui/2026/ov_bench/scripts/run_all_models_cpp_perf_stability_accuracy.sh \
+bash /home/sgui/2026/ov_bench/run_all_models_cpp_perf_stability_accuracy.sh \
   --openvino-libs /path/to/libopenvino.so \
   --mode multi --taskset-bind 0 --threads 12 --instances 32 \
   --duration 60 --warmup 3

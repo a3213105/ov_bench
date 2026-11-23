@@ -1,7 +1,6 @@
 __pycache__/
 *.py[cod]
 tmp/
-ov_bench
 
 # C/C++ build output
 /build/

@@ -1,21 +1,35 @@
-# OpenVINO C++ model tests
+# OpenVINO C++/Python model tests
 
 All standard native inference, accuracy, performance, stability and regression modes
 use [src/main.cpp](../src/main.cpp). CMake builds one executable:
 `ov_benchmark`. Model-specific schemas, input preparation and graph policies
 are in [src/application.cpp](../src/application.cpp).
 
-The only file at the `ov_bench` root is the entry script
-`run_all_models_cpp_perf_stability_accuracy.sh` (plus `CMakeLists.txt`).
+The same user-visible surface (CLI flags, `results.json` / `summary.tsv` layout,
+all modes) is also provided by a Python backend in
+[python/ov_bench/](../python/ov_bench/). The root
+[`ov_bench`](../ov_bench) entry script runs either engine with the same
+command line (see [Backend selection](#backend-selection-c-or-python)):
+
+```bash
+./ov_bench --backend python --mode self-test
+./ov_bench --backend cpp    --mode self-test
+./ov_bench --mode self-test          # prefer built C++ binary, else Python
+```
+
+Root files: `ov_bench` (backend-selector entry script),
+`run_all_models_cpp_perf_stability_accuracy.sh` (native all-items pipeline) and
+`CMakeLists.txt`.
 Layout:
 
 | Directory | Content |
 |---|---|
 | `src/` | C++ sources (`main.cpp`, `core.cpp`, ...) |
 | `include/ovbench/` | C++ headers |
+| `python/` | Python backend package (`python -m ov_bench`) |
 | `tools/` | Python benchmark/diagnostic/reference tools |
 | `tests/` | Unit tests (`test_*.py`, `random_accuracy_core.cpp`) |
-| `scripts/` | Pipeline and workflow shell scripts |
+| `scripts/` | Pipeline and workflow shell scripts (incl. `build_cpp.sh`) |
 | `docs/` | This README |
 
 ## Supported models
@@ -24,6 +38,7 @@ Layout:
 |---|---|---|
 | DINOv3 | `dinov3-convnext-tiny-pretrain-lvd1689m`, `dinov3-vits16-pretrain-lvd1689m`, `dinov3-vits16plus-pretrain-lvd1689m` | Existing XML/BIN IR, RGB normalized NCHW 224 |
 | YOLO-World | `v2:640`, `v2:1280`, `v2.1:640`, `v2.1:1280` | Existing XML/BIN IR, letterboxed RGB; three raw heads |
+| UNet | `unet_carvana_scale0.5_epoch2`, `unet_carvana_scale1.0_epoch2` | Existing XML/BIN IR; cubic resize to the deployment scale (0.5 / 1.0 of source), unnormalized 0..1 RGB, no crop |
 These are numerical inference tests, not detection decoding/NMS or business
 quality evaluation.
 
@@ -56,10 +71,60 @@ directories under `/tmp/ovbench-<uid>/`. Persist required JSON/TSV reports,
 logs and provenance under the project reports directory. Temporary paths are
 not archives; pass prepared manifests explicitly.
 
+## Backend selection (C++ or Python)
+
+Both engines expose the same CLI surface, modes and report layout:
+
+| Backend | Entry point | Implementation |
+|---|---|---|
+| `cpp` | `ov_benchmark` (built from `src/`) | Native OpenVINO C++ API |
+| `python` | `python -m ov_bench` (package [python/ov_bench/](../python/ov_bench/)) | OpenVINO Python API engine, same options, `results.json` / `summary.tsv` layout and modes |
+
+The root [`ov_bench`](../ov_bench) script runs either engine with the same
+command line:
+
+```bash
+./ov_bench --backend cpp    --mode self-test
+./ov_bench --backend python --mode self-test
+./ov_bench --mode self-test        # prefer the built C++ binary, else Python
+```
+
+`--backend` / `OVBENCH_BACKEND` selects the engine; `--binary` /
+`OVBENCH_CPP_BIN` points at a built `ov_benchmark`; `OVBENCH_PYTHON` chooses
+the Python interpreter (needs an OpenVINO + numpy environment). Without an
+explicit selection a runnable `build/ov_benchmark` (or `OVBENCH_CPP_BIN`)
+selects `cpp`, otherwise the Python backend is used.
+
+Covered modes on both backends: `performance`, `accuracy`, `stability`, `all`,
+`preprocess`, `single`, `random-accuracy`, `tolerance-search`, `self-test`,
+`gather-guard` and `compare-stability`. Exit-code contract: `0` all checks
+passed, `1` a result-level check did not pass (e.g. a FAILED accuracy case),
+`2` usage error, identically on both engines (exception classes
+`OVBError`/`std::invalid_argument` vs. `OVRuntimeError`). The single-mode stage
+timeout is the one exception to this table: it bypasses normal error handling
+in both engines and exits `124` after writing `timeout.json`. Remaining documented
+differences between the backends:
+
+- Generated random input *streams* are not bit-identical between engines
+  (C++ `std::mt19937_64` + `std::normal_distribution<float>` vs. seeded numpy
+  `Generator`/PCG64 + ziggurat normal). The generation algorithms differ at
+  both the bitstream and the transform level, so bit-exact unification would
+  require reimplementing one engine's full RNG stack inside the other
+  (fragile, maintenance-sensitive); the supported way to obtain identical
+  inputs across engines is the prepared-inputs/`--manifest` path, which the
+  accuracy and single-item suites use. Reproducibility holds per backend for
+  a fixed `--seed`; for cross-engine `random-accuracy` comparisons, compare
+  against recorded input hashes, not assumed stream positions.
+- BF16 outputs materialize through the Python runtime as a bit-identical
+  float16 value view, so byte-level md5 comparisons match the native raw-byte
+  handling.
+
 ## Active files
 
 | Purpose | Entry points |
 |---|---|
+| Backend selector (C++/Python, same CLI) | [ov_bench](../ov_bench) (root script), [scripts/build_cpp.sh](../scripts/build_cpp.sh) |
+| Python backend (all modes, same report layout) | [python/ov_bench/engine.py](../python/ov_bench/engine.py) via `python -m ov_bench` |
 | Native shared functionality | [src/core.cpp](../src/core.cpp), [src/stability.cpp](../src/stability.cpp), [src/image.cpp](../src/image.cpp) |
 | Random accuracy and tolerance search | [src/random_accuracy.cpp](../src/random_accuracy.cpp), [tools/random_reference_worker.py](../tools/random_reference_worker.py) |
 | Accuracy summaries | [tools/summarize_random_accuracy.py](../tools/summarize_random_accuracy.py), [tools/summarize_random_accuracy_versions.py](../tools/summarize_random_accuracy_versions.py) |
@@ -228,8 +293,9 @@ PyTorch/custom adapters and tensor-name mappings.
 OpenVINO reference runs use the same runtime's FP32 InferRequest, creating it
 even if FP32 is not selected. Its FP32 row is self-comparison, not independent
 correctness or repeatability validation. This baseline measures precision
-drift, not framework correctness. The reference Python process handles
-framework execution only; all tested OpenVINO inference remains in C++.
+drift, not framework correctness. Each reference Python process handles
+framework execution only; all tested OpenVINO inference stays in the engine
+process that owns the benchmark (C++ binary or Python backend).
 
 ### Criteria and metrics
 
@@ -271,6 +337,11 @@ between-iteration mean differences; it is not the average of individual
 variances. Unavailable pooled variance is blank. Variance does not affect
 pass/fail. Framework diagnostics are in per-model `reference_worker.log`;
 temporary raw transport files are removed after use.
+
+Both engines start the reference worker with an explicit
+`TBB_MAX_THREAD_NUM`/`OMP_NUM_THREADS` cap of `max(4, 2*threads)` (the
+inference session itself still runs with `--threads`), so the worker's READY
+handshake cannot be starved on large hosts by oversized global thread arenas.
 
 ### Optional shared-input rejection sampling
 

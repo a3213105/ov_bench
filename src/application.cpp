@@ -44,7 +44,7 @@ void fill_generic_random(ov::Tensor& tensor, std::mt19937_64& generator) {
     case ov::element::Type_t::u32: fill_random_integer<uint32_t>(tensor, generator); break;
     case ov::element::Type_t::u64: fill_random_integer<uint64_t>(tensor, generator); break;
     default:
-        throw std::invalid_argument("Unsupported generic random input dtype: " + tensor.get_element_type().get_type_name());
+        throw OVBError("Unsupported generic random input dtype: " + tensor.get_element_type().get_type_name());
     }
 }
 
@@ -96,7 +96,7 @@ const std::vector<ModelSpec>& model_specs() {
 const ModelSpec& find_model(const std::string& id) {
     for (const auto& spec : model_specs())
         if (spec.id == id) return spec;
-    throw std::invalid_argument("Unsupported model: " + id);
+    throw OVBError("Unsupported model: " + id);
 }
 
 std::filesystem::path model_path(const ModelSpec& spec, const std::filesystem::path& root) {
@@ -129,24 +129,24 @@ std::vector<std::pair<std::string, ov::Tensor>> random_inputs(
         if (std::count_if(shapes.begin(), shapes.end(), [&](const auto& entry) {
                 return names.count(entry.first) != 0;
             }) > 1)
-            throw std::invalid_argument("Multiple random shape overrides for aliases of input: " + name);
+            throw OVBError("Multiple random shape overrides for aliases of input: " + name);
         const auto partial = port.get_partial_shape();
         if (override != shapes.end()) {
             shape = override->second;
             if (!partial.compatible(ov::PartialShape(shape)))
-                throw std::invalid_argument("Random shape incompatible with input: " + name);
+                throw OVBError("Random shape incompatible with input: " + name);
         } else {
             if (partial.rank().is_dynamic())
-                throw std::invalid_argument("Random input requires explicit shape for dynamic rank: " + name);
+                throw OVBError("Random input requires explicit shape for dynamic rank: " + name);
             for (size_t axis = 0; axis < static_cast<size_t>(partial.rank().get_length()); ++axis) {
                 if (partial[axis].is_static()) shape.push_back(partial[axis].get_length());
                 else if (axis == 0 && partial[axis].compatible(1)) shape.push_back(1);
-                else throw std::invalid_argument("Unresolved random input dimension: " + name +
+                else throw OVBError("Unresolved random input dimension: " + name +
                                                  "; specify --input-shape NAME=DIM[,DIM...] for --model-file");
             }
         }
         if (std::find(shape.begin(), shape.end(), 0) != shape.end())
-            throw std::invalid_argument("Random input has empty dimension: " + name);
+            throw OVBError("Random input has empty dimension: " + name);
         ov::Tensor tensor(port.get_element_type(), shape);
         if (tensor.get_element_type() == ov::element::f32) {
             for (size_t i = 0; i < tensor.get_size(); ++i) tensor.data<float>()[i] = normal(generator);
@@ -162,7 +162,7 @@ std::vector<std::pair<std::string, ov::Tensor>> random_inputs(
             }
         } else if (spec.family == "generic") {
             fill_generic_random(tensor, generator);
-        } else throw std::invalid_argument("Unsupported random input dtype: " + name);
+        } else throw OVBError("Unsupported random input dtype: " + name);
         inputs.emplace_back(name, std::move(tensor));
     }
     validate_inputs(model, inputs);
@@ -173,7 +173,7 @@ std::shared_ptr<ov::Model> load_model(const ModelSpec& spec, const std::filesyst
     auto model = read_model(model_path(spec, root));
     if (spec.family == "generic") {
         if (model->inputs().empty() || model->outputs().empty())
-            throw std::invalid_argument("Generic testing requires model inputs and outputs");
+            throw OVBError("Generic testing requires model inputs and outputs");
         std::set<std::string> input_names;
         for (const auto& input : model->inputs())
             for (const auto& name : input.get_names()) input_names.insert(name);

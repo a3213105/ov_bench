@@ -108,9 +108,9 @@ public:
 
 size_t positive(const std::string& text) {
     if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos)
-        throw std::invalid_argument("Expected positive integer: " + text);
+        throw ovbench::OVBError("Expected positive integer: " + text);
     const auto n = std::stoull(text);
-    if (!n || n > 1000000000) throw std::invalid_argument("Integer out of range: " + text);
+    if (!n || n > 1000000000) throw ovbench::OVBError("Integer out of range: " + text);
     return static_cast<size_t>(n);
 }
 
@@ -387,7 +387,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         if (argc != 9)
-            throw std::invalid_argument(
+            throw ovbench::OVBError(
                 "Usage: pred_memory MODEL_ROOT MANIFEST MODEL BACKEND PRECISION THREADS ITERATIONS OUTPUT"
                 " or pred_memory --prepare MODEL_ROOT OUTPUT");
         output = argv[8];
@@ -399,7 +399,7 @@ int main(int argc, char** argv) {
         if (spec.family != "prediction" || (backend != "ov" && backend != "ort") ||
             (precision != "FP32" && precision != "BF16" && precision != "FP16") ||
             (backend == "ort" && precision != "FP32"))
-            throw std::invalid_argument("Invalid model/backend/precision combination");
+            throw ovbench::OVBError("Invalid model/backend/precision combination");
         result.update({{"model", spec.id}, {"backend", backend}, {"precision", precision},
             {"inference_threads", threads}, {"iterations", iterations}, {"pid", ::getpid()},
             {"source_model_policy", backend == "ov" ? "released immediately after compile" : "ORT owned"},
@@ -409,7 +409,7 @@ int main(int argc, char** argv) {
         auto samples = load_inputs(argv[2], spec.id);
         if (const auto* three_batches = std::getenv("OVBENCH_THREE_BATCHES")) {
             if (std::string(three_batches) != "1" || backend != "ov" || iterations != 3)
-                throw std::invalid_argument("OVBENCH_THREE_BATCHES=1 requires OV and exactly 3 iterations");
+                throw ovbench::OVBError("OVBENCH_THREE_BATCHES=1 requires OV and exactly 3 iterations");
             prepare_three_batches(samples);
         }
         recorder.stage("inputs_loaded");

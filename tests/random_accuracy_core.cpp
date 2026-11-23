@@ -126,7 +126,7 @@ int ovbench::run_random_accuracy_core_tests() {
               "Equal integer values may use different integer widths");
         bool rejected = false;
         try { (void)ovbench::compare_output(zeros, tensor<float>(ov::element::f32, {0}), 0.99); }
-        catch (const std::invalid_argument&) { rejected = true; }
+        catch (const ovbench::OVBError&) { rejected = true; }
         check(rejected, "Mismatched output shapes must be rejected");
 
         row = ovbench::compare_output(ones, tensor<float>(ov::element::f32, {2, 2}), 0.99);
@@ -167,7 +167,7 @@ int ovbench::run_random_accuracy_core_tests() {
             for (const auto tolerance : {ovbench::Tolerance{invalid, 0}, ovbench::Tolerance{0, invalid}}) {
                 rejected = false;
                 try { (void)ovbench::compare_output(ones, ones, 0.99, tolerance); }
-                catch (const std::invalid_argument&) { rejected = true; }
+                catch (const ovbench::OVBError&) { rejected = true; }
                 check(rejected, "Invalid tolerances must be rejected");
             }
         }
@@ -193,14 +193,14 @@ int ovbench::run_random_accuracy_core_tests() {
               "Prediction mask groups must contain both valid and invalid entries");
         rejected = false;
         try { (void)ovbench::random_inputs(spec, model, a, {{"features", {1, 7, 3}}}); }
-        catch (const std::invalid_argument&) { rejected = true; }
+        catch (const ovbench::OVBError&) { rejected = true; }
         check(rejected, "Incompatible input shapes must be rejected");
         auto dynamic = std::make_shared<ops::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, 3});
         dynamic->output(0).set_names({"dynamic"});
         ov::Model dynamic_model(ov::OutputVector{dynamic}, ov::ParameterVector{dynamic});
         rejected = false;
         try { (void)ovbench::random_inputs(spec, dynamic_model, a); }
-        catch (const std::invalid_argument&) { rejected = true; }
+        catch (const ovbench::OVBError&) { rejected = true; }
         check(rejected, "Non-batch dynamic dimensions must not be guessed");
         auto resolved = ovbench::random_inputs(spec, dynamic_model, a, {{"dynamic", {1, 4, 3}}});
         check(resolved[0].second.get_shape() == ov::Shape({1, 4, 3}), "Explicit dynamic shape must be applied");
@@ -209,7 +209,7 @@ int ovbench::run_random_accuracy_core_tests() {
         try {
             (void)ovbench::random_inputs(spec, dynamic_model, a,
                                          {{"dynamic", {1, 4, 3}}, {"alias", {1, 5, 3}}});
-        } catch (const std::invalid_argument&) { rejected = true; }
+        } catch (const ovbench::OVBError&) { rejected = true; }
         check(rejected, "Conflicting alias shape overrides must be rejected");
         const ovbench::ModelSpec generic{"custom", "generic", "custom.xml", 0, 0, {}, {}};
         for (const auto& type : {ov::element::f32, ov::element::f16, ov::element::bf16,

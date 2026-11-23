@@ -8,9 +8,12 @@ Differences (documented, mirroring the package docstring):
   (float ``normal(0, 0.1)``, integer ``uniform{0, 1}``, boolean
   ``Bernoulli(0.75)``) but the exact sequence is not bit-identical to
   ``std::mt19937_64``.
-* The native engine's SDPA->BF16 graph rewrite (``force_sdpa_bf16``) relies on
-  node-replacement primitives the OpenVINO Python API does not expose, so the
-  Python backend runs the graph as-is and reports ``sdpa_bf16_nodes == 0``.
+* The native engine's SDPA->BF16 graph rewrite (``force_sdpa_bf16``) is
+  ported one-for-one: each ScaledDotProductAttention node is replaced with a
+  fresh BF16 node plus a Convert back to the original element type, using
+  ``ov.opset13.convert`` / ``ov.opset13.scaled_dot_product_attention`` and the
+  in-place ``node.output(0).replace(...)`` primitive (same operation sequence
+  as ``src/application.cpp`` and the reference ``dinov3_benchmark.py``).
 """
 
 import warnings
@@ -356,15 +359,42 @@ def validate_inputs(model, tensors):
 
 
 def force_sdpa_bf16(model):
-    """Native-only graph pass; see the module docstring for the rationale.
+    """Rewrite every SDPA node to a BF16 subgraph, mirroring the native pass.
 
-    Returns the number of SDPA nodes rewritten (always 0 in the Python backend).
+    For each ``ScaledDotProductAttention`` node, Q/K/V/scale are converted to
+    BF16 (a boolean mask keeps its element type, exactly like the C++ pass),
+    a fresh BF16 SDPA node is built, and the original node's output is
+    replaced by a Convert back to the original element type.
     """
-    return 0
+    patched = 0
+    for node in list(model.get_ordered_ops()):
+        if node.get_type_name() != "ScaledDotProductAttention":
+            continue
+        new_inputs = []
+        for i in range(node.get_input_size()):
+            value = node.input_value(i)
+            if i == 3 and value.get_element_type() == ov.Type.boolean:
+                new_inputs.append(value)
+            else:
+                new_inputs.append(ov.opset13.convert(value, ov.Type.bf16))
+        replacement = ov.opset13.scaled_dot_product_attention(*new_inputs, False)
+        restored = ov.opset13.convert(replacement, node.get_output_element_type(0))
+        restored.set_friendly_name(node.get_friendly_name() + "/sdpa_bf16")
+        names = [str(x) for x in node.output(0).get_names()]
+        if names:
+            restored.output(0).set_names(set(names))
+        node.output(0).replace(restored.output(0))
+        patched += 1
+    if patched:
+        model.validate_nodes_and_infer_types()
+    return patched
 
 
 def apply_default_sdpa_bf16(spec, precision, model, enabled=True):
     if not enabled or precision != "FP16" or spec.family != "dinov3" or \
             not spec.id.startswith("dinov3-vits16"):
         return 0
-    return force_sdpa_bf16(model)
+    count = force_sdpa_bf16(model)
+    if count != 12:
+        raise OVRuntimeError("Expected 12 SDPA nodes, found %d" % count)
+    return count

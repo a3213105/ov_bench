@@ -24,7 +24,7 @@ namespace ovbench {
 namespace {
 
 void require(bool condition, const std::string& message) {
-    if (!condition) throw std::invalid_argument(message);
+    if (!condition) throw OVBError(message);
 }
 
 struct AbsoluteErrorMoments {
@@ -101,7 +101,7 @@ long double value_at(ov::Tensor& tensor, std::size_t i) {
     case ov::element::Type_t::u16: return value<std::uint16_t>(tensor, i);
     case ov::element::Type_t::u32: return value<std::uint32_t>(tensor, i);
     case ov::element::Type_t::u64: return value<std::uint64_t>(tensor, i);
-    default: throw std::invalid_argument("Unsupported tensor dtype");
+    default: throw OVBError("Unsupported tensor dtype");
     }
 }
 
@@ -268,7 +268,7 @@ Tolerance default_tolerance(const std::string& precision) {
     if (precision == "FP32") return {1e-5, 1e-4};
     if (precision == "BF16") return {1e-3, 1e-2};
     if (precision == "FP16") return {1e-4, 1e-3};
-    throw std::invalid_argument("Unsupported tolerance precision: " + precision);
+    throw OVBError("Unsupported tolerance precision: " + precision);
 }
 
 nlohmann::json compare_output(const ov::Tensor& expected, const ov::Tensor& actual, double threshold,
